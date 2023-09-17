@@ -15,7 +15,7 @@ public class MotorPlugin
     }
 
     [SKName("BACKWARD")]
-    [SKFunction, Description("The car moves backward. This command moves the car backward until another command is called. This command terminates any other command and keeps the car moving backward.")]
+    [SKFunction, Description("Moves the car backward.")]
     public string Backward(SKContext context)
     {
         var isStopped = context.Variables["input"].Contains("stopped");
@@ -28,7 +28,7 @@ public class MotorPlugin
     }
 
     [SKName("FORWARD")]
-    [SKFunction, Description("The car moves forward. This command moves the car forward until another command is called. This command terminates any other command and keeps the car moving forward.")]
+    [SKFunction, Description("Moves the car forward.")]
     public string Forward(SKContext context)
     {
         var isStopped = context.Variables["input"].Contains("stopped");
@@ -41,7 +41,7 @@ public class MotorPlugin
     }
 
     [SKName("STOP")]
-    [SKFunction, Description("The car stops moving.")]
+    [SKFunction, Description("Stops the car.")]
     public string Stop()
     {
         //_gpioController.Write(_settings.LeftBackwardPin, PinValue.High);
@@ -53,7 +53,7 @@ public class MotorPlugin
     }
 
     [SKName("TURNLEFT")]
-    [SKFunction, Description("The car turns anti-clockwise 45 degrees. A complete turn of 360 degrees brings the car in the initial position.")]
+    [SKFunction, Description("Turns the car anti-clockwise 45 degrees. A complete turn of 360 degrees brings the car in the initial position.")]
     [SKParameter("input", "Car movement status")]
     public string TurnLeft(SKContext context)
     {
@@ -68,7 +68,7 @@ public class MotorPlugin
     }
 
     [SKName("TURNRIGHT")]
-    [SKFunction, Description("The car turns clockwise 45 degrees. A complete turn of 360 degrees brings the car in the initial position.")]
+    [SKFunction, Description("Turns the car clockwise 45 degrees. A complete turn of 360 degrees brings the car in the initial position.")]
     [SKParameter("input", "Car movement status")]
     public string TurnRight(SKContext context)
     {
