@@ -23,7 +23,7 @@ public class MotorPlugin
         //_gpioController.Write(_settings.RightBackwardPin, PinValue.High);
         //_gpioController.Write(_settings.LeftBackwardPin, PinValue.Low);
         //_gpioController.Write(_settings.RightBackwardPin, PinValue.Low);
-        _logger.LogDebug("The car is moving backward.");
+        _logger.LogTrace("The car is moving backward.");
         return $"moving";
     }
 
@@ -36,7 +36,7 @@ public class MotorPlugin
         //_gpioController.Write(_settings.RightBackwardPin, PinValue.High);
         //_gpioController.Write(_settings.LeftBackwardPin, PinValue.Low);
         //_gpioController.Write(_settings.RightBackwardPin, PinValue.Low);
-        _logger.LogDebug("The car is moving forward.");
+        _logger.LogTrace("The car is moving forward.");
         return $"moving";
     }
 
@@ -48,7 +48,7 @@ public class MotorPlugin
         //_gpioController.Write(_settings.RightBackwardPin, PinValue.High);
         //_gpioController.Write(_settings.LeftBackwardPin, PinValue.Low);
         //_gpioController.Write(_settings.RightBackwardPin, PinValue.Low);
-        _logger.LogDebug("The car is stopped.");
+        _logger.LogTrace("The car is stopped.");
         return $"stopped";
     }
 
@@ -63,7 +63,7 @@ public class MotorPlugin
         var milliseconds = 500;
         System.Threading.Thread.Sleep(milliseconds); // 45 degrees turn
         //_gpioController.Write(_settings.RightForwardPin, PinValue.Low);
-        _logger.LogDebug("The car turned left.");
+        _logger.LogTrace("The car turned left.");
         return $"moving";
     }
 
@@ -78,7 +78,7 @@ public class MotorPlugin
         var milliseconds = 500;
         System.Threading.Thread.Sleep(milliseconds); // 45 degrees turn
         //_gpioController.Write(_settings.RightForwardPin, PinValue.Low);
-        _logger.LogDebug("The car turned right.");
+        _logger.LogTrace("The car turned right.");
         return $"moving";
     }
 
