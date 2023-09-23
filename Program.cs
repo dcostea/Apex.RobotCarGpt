@@ -3,27 +3,46 @@ using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.AI.TextCompletion;
+using Microsoft.SemanticKernel.Diagnostics;
+using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Planning;
+using Microsoft.SemanticKernel.Planning.Sequential;
 
 using var loggerFactory = LoggerFactory.Create(builder =>
 {
     builder
+        .AddFilter("Microsoft", LogLevel.Warning)
+        .AddFilter("System", LogLevel.Warning)
+        .AddFilter("Microsoft.SemanticKernel", LogLevel.Warning)
         .SetMinimumLevel(LogLevel.Information)
         .AddConsole()
         .AddDebug();
 });
 
+/*
+var loggerFactory = new LoggerFactory(new[] { new ConsoleLoggerProvider(optionsMonitor) }, 
+new LoggerFilterOptions { MinLevel = LogLevel.Information }); 
+ 
+ */
+
 var kernel = new KernelBuilder()
     .WithCompletionService()
+    //.WithMemoryStorage(new VolatileMemoryStore())
     .WithLoggerFactory(loggerFactory)
     .Build();
 
 var logger = kernel.LoggerFactory.CreateLogger("MotorPlugin");
 
-_ = kernel.ImportSkill(new Plugins.MotorPlugin(logger), "MotorPlugin");
+_ = kernel.ImportSkill(new Plugins.MotorPlugin(logger));
 
 // Create a planner
-var planner = new SequentialPlanner(kernel);
+SequentialPlannerConfig config = new SequentialPlannerConfig
+{
+    RelevancyThreshold = 0.6,
+    AllowMissingFunctions = true,
+    //Memory = textMemoryProvider
+};
+var planner = new SequentialPlanner(kernel, config);
 
 var asks = new List<string> 
 {
@@ -58,10 +77,13 @@ foreach (var ask in asks)
         var cancellationToken = cancellationTokenSource.Token;
 
         var plan = await planner.CreatePlanAsync(ask, cancellationToken);
-        plan.UseCompletionSettings(new CompleteRequestSettings
-        {
-            Temperature = 1,
-        });
+        //plan.UseCompletionSettings(new CompleteRequestSettings
+        //{
+        //    Temperature = 1,
+        //});
+
+        logger.LogDebug("Original plan:\n{originalPlan}", plan.ToPlanString());
+        logger.LogDebug("Safe original plan:\n{originalPlan}", plan.ToPlanString());
 
         logger.LogInformation("Ask: {ask}", ask);
         foreach (var step in plan.Steps)
@@ -74,7 +96,7 @@ foreach (var ask in asks)
         logger.LogDebug(planResult.Result);
         //logger.LogDebug(JsonSerializer.Serialize(plan, new JsonSerializerOptions { WriteIndented = true }));
     }
-    catch (Exception ex)
+    catch (SKException ex)
     {
         cancellationTokenSource.Cancel();
         cancellationTokenSource.Dispose();
