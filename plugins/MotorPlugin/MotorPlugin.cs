@@ -53,22 +53,22 @@ public class MotorPlugin
     }
 
     [SKName("TURNLEFT")]
-    [SKFunction, Description("Turns the car anti-clockwise 45 degrees. A complete turn of 360 degrees brings the car in the initial position.")]
+    [SKFunction, Description("Turns the car anticlockwise.")]
     [SKParameter("input", "Car movement status")]
     public string TurnLeft(SKContext context)
     {
-        //_gpioController.Write(_settings.RightForwardPin, PinValue.High);
+        //_gpioController.Write(_settings.LeftForwardPin, PinValue.High);
         var isStopped = context.Variables["input"].Contains("stopped");
         // if status is stopped, start the car
         var milliseconds = 500;
-        System.Threading.Thread.Sleep(milliseconds); // 45 degrees turn
-        //_gpioController.Write(_settings.RightForwardPin, PinValue.Low);
+        System.Threading.Thread.Sleep(milliseconds);
+        //_gpioController.Write(_settings.LeftForwardPin, PinValue.Low);
         _logger.LogTrace("The car turned left.");
         return $"moving";
     }
 
     [SKName("TURNRIGHT")]
-    [SKFunction, Description("Turns the car clockwise 45 degrees. A complete turn of 360 degrees brings the car in the initial position.")]
+    [SKFunction, Description("Turns the car clockwise.")]
     [SKParameter("input", "Car movement status")]
     public string TurnRight(SKContext context)
     {
@@ -76,10 +76,9 @@ public class MotorPlugin
         var isStopped = context.Variables["input"].Contains("stopped");
         // if status is stopped, start the car
         var milliseconds = 500;
-        System.Threading.Thread.Sleep(milliseconds); // 45 degrees turn
+        System.Threading.Thread.Sleep(milliseconds);
         //_gpioController.Write(_settings.RightForwardPin, PinValue.Low);
         _logger.LogTrace("The car turned right.");
         return $"moving";
     }
-
 }

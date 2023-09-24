@@ -1,4 +1,6 @@
-﻿namespace Apex.RobotCarGpt;
+﻿using Microsoft.SemanticKernel.Diagnostics;
+
+namespace Apex.RobotCarGpt;
 
 public static class StringExtensions
 {
@@ -16,7 +18,7 @@ public static class StringExtensions
             "BACKWARD" => "🡰",
             "TURNLEFT" => "🡵",
             "TURNRIGHT" => "🡶",
-            _ => throw new Exception($"Function {function} does not exist.")
+            _ => throw new SKException($"Function {function} does not exist.")
         };
 
         return x;
