@@ -14,7 +14,6 @@ public class MotorPlugin
         _logger = logger;
     }
 
-    [SKName("BACKWARD")]
     [SKFunction, Description("Moves the car backward.")]
     public string Backward(SKContext context)
     {
@@ -27,7 +26,6 @@ public class MotorPlugin
         return $"moving";
     }
 
-    [SKName("FORWARD")]
     [SKFunction, Description("Moves the car forward.")]
     public string Forward(SKContext context)
     {
@@ -40,7 +38,6 @@ public class MotorPlugin
         return $"moving";
     }
 
-    [SKName("STOP")]
     [SKFunction, Description("Stops the car.")]
     public string Stop()
     {
@@ -52,7 +49,6 @@ public class MotorPlugin
         return $"stopped";
     }
 
-    [SKName("TURNLEFT")]
     [SKFunction, Description("Turns the car anticlockwise.")]
     [SKParameter("input", "Car movement status")]
     public string TurnLeft(SKContext context)
@@ -67,7 +63,6 @@ public class MotorPlugin
         return $"moving";
     }
 
-    [SKName("TURNRIGHT")]
     [SKFunction, Description("Turns the car clockwise.")]
     [SKParameter("input", "Car movement status")]
     public string TurnRight(SKContext context)

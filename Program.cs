@@ -74,7 +74,7 @@ foreach (var ask in asks)
     string extractPrompt = """
     You are a minimalistic car capable of some basic commands like forward, backward, turn left, turn right and stop.
     Initial state of the car is stopped.
-    Take this action "{{$input}}" and extract a list basic commands, as described above, to fulfil the action.
+    Take this goal "{{$input}}" and create a list of basic commands, as described above, to fulfil the goal.
     """;
 
     var extractFunction = kernel.CreateSemanticFunction(extractPrompt, maxTokens: 500);
@@ -88,7 +88,7 @@ foreach (var ask in asks)
         if (showStepsUsingArrows)
         {
             // show steps by function name converted to arrows
-            var planStepsArrows = string.Join(" ", plan.Steps.Select(s => s.Name.ToArrow()));
+            var planStepsArrows = string.Join(" ", plan.Steps.Select(s => s.Name.ToUpper().ToArrow()));
             Console.OutputEncoding = System.Text.Encoding.Unicode;
             Console.WriteLine(planStepsArrows);
             Console.WriteLine();
@@ -96,7 +96,7 @@ foreach (var ask in asks)
         else 
         {
             // show steps by function name
-            var planSteps = string.Join(" => ", plan.Steps.Select(s => s.Name));
+            var planSteps = string.Join(" => ", plan.Steps.Select(s => s.Name.ToUpper()));
             logger.LogInformation(planSteps);
         }
     }
