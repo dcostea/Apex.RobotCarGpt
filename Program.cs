@@ -5,6 +5,7 @@ using Microsoft.SemanticKernel.Diagnostics;
 using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Planning;
 using Microsoft.SemanticKernel.Planning.Sequential;
+using Microsoft.SemanticKernel.Orchestration;
 
 using var loggerFactory = LoggerFactory.Create(builder =>
 {
@@ -30,60 +31,59 @@ var logger = kernel.LoggerFactory.CreateLogger("MotorPlugin");
 
 _ = kernel.ImportSkill(new Plugins.MotorPlugin(logger));
 
-var config = new SequentialPlannerConfig
-{
-    RelevancyThreshold = 0.6,
-    AllowMissingFunctions = false,
-    //Memory = textMemoryProvider
-};
-var planner = new SequentialPlanner(kernel, config);
+var planner = new SequentialPlanner(kernel);
 
 var asks = new List<string>
 {
   "go like turn left forward turn right backward stop?",
   "go 10 steps where each step is a randomly selected step like forward, backward, and turning left or right?",
-
   "avoid the tree in front of the car?",
+  "move forward, turn left, forward and return in the same place where it started?",
   "do the moonwalk dancing?",
   "move like a jellyfish?",
   "dance like a ballerina?",
 
-  "do a full complete turn?",
   "go on square path?",
-  "go on a circle?",
-  "do a full circle?",
-  "do a full rotation?",
-  "do a semi-circle?",
+  "go on a full complete circle?",
+  "go on a semi-circle?",
+  "do a full 360 degrees rotation?",
   "do a full circle by turning left followed by a full circle by turning right?",
 
   "run away?",
   "do an evasive maneuver?",
   "do a pretty complex evasive maneuver with a least 15 steps? Stop at every 5 steps.",
-  "move forward, turn left, forward and return in the same place where it started?",
 };
 
 var isPlanExcutedStepByStep = false;
+var isExtractingMotorCommands = true;
 var showStepsUsingArrows = true;
 
 foreach (var ask in asks)
 {
     Plan plan = null!;
 
-    logger.LogInformation("Ask: {ask}", ask);
-
-    string extractPrompt = """
-    You are a minimalistic car capable of some basic commands like forward, backward, turn left, turn right and stop.
-    Initial state of the car is stopped.
-    Take this goal "{{$input}}" and create a list of basic commands, as described above, to fulfil the goal.
-    """;
-
-    var extractFunction = kernel.CreateSemanticFunction(extractPrompt, maxTokens: 500);
-    var response = await extractFunction.InvokeAsync(ask);
-    logger.LogInformation("Summarized ask: {response}", response.Result);
+    logger.LogInformation("ASK: {ask}", ask);
 
     try
     {
-        plan = await planner.CreatePlanAsync(response.Result);
+        if (isExtractingMotorCommands)
+        {
+            string extractMotorCommandsPrompt = """
+    You are a minimalistic car capable of performing some basic commands like going forward, going backward, turn left, turn right and stop.
+    Initial state of the car is stopped.
+    Take this goal "{{$input}}" and create a list of basic commands, as enumerated above, to fulfil the goal. 
+    """;
+
+            var extractMotorCommandsFunction = kernel.CreateSemanticFunction(extractMotorCommandsPrompt, maxTokens: 500);
+            var extractedMotorCommands = await extractMotorCommandsFunction.InvokeAsync(ask);
+            logger.LogInformation("Extracted motor commands: {response}", extractedMotorCommands.Result);
+
+            plan = await planner.CreatePlanAsync(extractedMotorCommands.Result);
+        }
+        else 
+        {
+            plan = await planner.CreatePlanAsync(ask);
+        }
 
         if (showStepsUsingArrows)
         {
@@ -140,7 +140,8 @@ foreach (var ask in asks)
         // execute plan in one go
         try
         {
-            _ = await kernel.RunAsync(plan);
+            var result = await kernel.RunAsync(plan);
+            logger.LogInformation("Plan result: {result}", result.Result);
         }
         catch (SKException ex)
         {

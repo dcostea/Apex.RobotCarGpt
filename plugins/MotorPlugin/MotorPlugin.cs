@@ -15,37 +15,35 @@ public class MotorPlugin
     }
 
     [SKFunction, Description("Moves the car backward.")]
+    [SKParameter("input", "Car movement status")]
     public string Backward(SKContext context)
     {
         var isStopped = context.Variables["input"].Contains("stopped");
-        //_gpioController.Write(_settings.LeftBackwardPin, PinValue.High);
-        //_gpioController.Write(_settings.RightBackwardPin, PinValue.High);
-        //_gpioController.Write(_settings.LeftBackwardPin, PinValue.Low);
-        //_gpioController.Write(_settings.RightBackwardPin, PinValue.Low);
-        _logger.LogTrace("The car is moving backward.");
+        var state = isStopped ? "stopped" : "moving";
+        _logger.LogTrace("The car was {state} and now is moving backward.", state);
+
         return $"moving";
     }
 
     [SKFunction, Description("Moves the car forward.")]
+    [SKParameter("input", "Car movement status")]
     public string Forward(SKContext context)
     {
         var isStopped = context.Variables["input"].Contains("stopped");
-        //_gpioController.Write(_settings.LeftBackwardPin, PinValue.High);
-        //_gpioController.Write(_settings.RightBackwardPin, PinValue.High);
-        //_gpioController.Write(_settings.LeftBackwardPin, PinValue.Low);
-        //_gpioController.Write(_settings.RightBackwardPin, PinValue.Low);
-        _logger.LogTrace("The car is moving forward.");
+        var state = isStopped ? "stopped" : "moving";
+        _logger.LogTrace("The car was {state} and now is moving forward.", state);
+
         return $"moving";
     }
 
     [SKFunction, Description("Stops the car.")]
-    public string Stop()
+    [SKParameter("input", "Car movement status")]
+    public string Stop(SKContext context)
     {
-        //_gpioController.Write(_settings.LeftBackwardPin, PinValue.High);
-        //_gpioController.Write(_settings.RightBackwardPin, PinValue.High);
-        //_gpioController.Write(_settings.LeftBackwardPin, PinValue.Low);
-        //_gpioController.Write(_settings.RightBackwardPin, PinValue.Low);
-        _logger.LogTrace("The car is stopped.");
+        var isStopped = context.Variables["input"].Contains("stopped");
+        var state = isStopped ? "stopped" : "moving";
+        _logger.LogTrace("The car was {state} and now is stopping.", state);
+
         return $"stopped";
     }
 
@@ -53,13 +51,10 @@ public class MotorPlugin
     [SKParameter("input", "Car movement status")]
     public string TurnLeft(SKContext context)
     {
-        //_gpioController.Write(_settings.LeftForwardPin, PinValue.High);
         var isStopped = context.Variables["input"].Contains("stopped");
-        // if status is stopped, start the car
-        var milliseconds = 500;
-        System.Threading.Thread.Sleep(milliseconds);
-        //_gpioController.Write(_settings.LeftForwardPin, PinValue.Low);
-        _logger.LogTrace("The car turned left.");
+        var state = isStopped ? "stopped" : "moving";
+        _logger.LogTrace("The car was {state} and now is turning left.", state);
+
         return $"moving";
     }
 
@@ -67,13 +62,10 @@ public class MotorPlugin
     [SKParameter("input", "Car movement status")]
     public string TurnRight(SKContext context)
     {
-        //_gpioController.Write(_settings.RightForwardPin, PinValue.High);
         var isStopped = context.Variables["input"].Contains("stopped");
-        // if status is stopped, start the car
-        var milliseconds = 500;
-        System.Threading.Thread.Sleep(milliseconds);
-        //_gpioController.Write(_settings.RightForwardPin, PinValue.Low);
-        _logger.LogTrace("The car turned right.");
+        var state = isStopped ? "stopped" : "moving";
+        _logger.LogTrace("The car was {state} and now is turning right.", state);
+
         return $"moving";
     }
 }
