@@ -1,11 +1,8 @@
-﻿using Apex.RobotCarGpt;
+﻿using Commands;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Diagnostics;
-using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Planning;
-using Microsoft.SemanticKernel.Planning.Sequential;
-using Microsoft.SemanticKernel.Orchestration;
 
 using var loggerFactory = LoggerFactory.Create(builder =>
 {
@@ -23,13 +20,13 @@ using var loggerFactory = LoggerFactory.Create(builder =>
 
 var kernel = new KernelBuilder()
     .WithCompletionService()
-    //.WithMemoryStorage(new VolatileMemoryStore())
     .WithLoggerFactory(loggerFactory)
     .Build();
 
-var logger = kernel.LoggerFactory.CreateLogger("MotorPlugin");
+var logger = kernel.LoggerFactory.CreateLogger(nameof(Plugins.MotorPlugin));
 
-_ = kernel.ImportSkill(new Plugins.MotorPlugin(logger));
+// import native functions from MotorPlugin
+var motorPlugin = kernel.ImportSkill(new Plugins.MotorPlugin(logger));
 
 var planner = new SequentialPlanner(kernel);
 
@@ -55,8 +52,7 @@ var asks = new List<string>
 };
 
 var isPlanExcutedStepByStep = false;
-var isExtractingMotorCommands = true;
-var showStepsUsingArrows = true;
+var isTransformingGoalIntoBasicCommands = true;
 
 foreach (var ask in asks)
 {
@@ -66,39 +62,31 @@ foreach (var ask in asks)
 
     try
     {
-        if (isExtractingMotorCommands)
+        if (isTransformingGoalIntoBasicCommands)
         {
-            string extractMotorCommandsPrompt = """
-    You are a minimalistic car capable of performing some basic commands like going forward, going backward, turn left, turn right and stop.
-    Initial state of the car is stopped.
-    Take this goal "{{$input}}" and create a list of basic commands, as enumerated above, to fulfil the goal. 
-    """;
+            // 1. Extract commands by creating and invoking an inline semantic function (naive approach, default arguments)
+            //var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingInlineSemanticFunctionAsync(ask);
 
-            var extractMotorCommandsFunction = kernel.CreateSemanticFunction(extractMotorCommandsPrompt, maxTokens: 500);
-            var extractedMotorCommands = await extractMotorCommandsFunction.InvokeAsync(ask);
-            logger.LogInformation("Extracted motor commands: {response}", extractedMotorCommands.Result);
+            // 2. Extract commands by registering and running a semantic function (SK-like approach)
+            //var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingRegisteredSemanticFunctionAsync(ask);
 
-            plan = await planner.CreatePlanAsync(extractedMotorCommands.Result);
+            // 3. Extract commands by importing a semantic function defined in a plugin (in our case, same as MotorPlugin)
+            var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingPluginSemanticFunctionAsync(ask);
+
+            logger.LogInformation("Extracted motor commands: {response}", extractedMotorCommandsFromAsk);
+
+            plan = await planner.CreatePlanAsync(extractedMotorCommandsFromAsk);
         }
-        else 
+        else
         {
             plan = await planner.CreatePlanAsync(ask);
         }
 
-        if (showStepsUsingArrows)
-        {
-            // show steps by function name converted to arrows
-            var planStepsArrows = string.Join(" ", plan.Steps.Select(s => s.Name.ToUpper().ToArrow()));
-            Console.OutputEncoding = System.Text.Encoding.Unicode;
-            Console.WriteLine(planStepsArrows);
-            Console.WriteLine();
-        }
-        else 
-        {
-            // show steps by function name
-            var planSteps = string.Join(" => ", plan.Steps.Select(s => s.Name.ToUpper()));
-            logger.LogInformation(planSteps);
-        }
+        // show steps as function name converted to arrows
+        var planStepsArrows = string.Join(" ", plan.Steps.Select(s => s.Name.ToUpper().ToArrow()));
+        Console.OutputEncoding = System.Text.Encoding.Unicode;
+        Console.WriteLine(planStepsArrows);
+        Console.WriteLine();
     }
     catch (SKException exc)
     {
@@ -106,7 +94,7 @@ foreach (var ask in asks)
         continue;
     }
 
-    if (isPlanExcutedStepByStep) 
+    if (isPlanExcutedStepByStep)
     {
         // execute plan step by step until complete or at most N steps
         var maxSteps = 10;
@@ -135,7 +123,7 @@ foreach (var ask in asks)
             logger.LogError("Step - Execution failed: {message}", ex.Message);
         }
     }
-    else 
+    else
     {
         // execute plan in one go
         try

@@ -1,8 +1,8 @@
 ﻿using Microsoft.SemanticKernel.Diagnostics;
 
-namespace Apex.RobotCarGpt;
+namespace Commands;
 
-public static class StringExtensions
+public static class CommandExtensions
 {
     public static string ToArrow(this string function)
     {
