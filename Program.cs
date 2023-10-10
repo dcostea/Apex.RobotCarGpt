@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Diagnostics;
+using Microsoft.SemanticKernel.Planners;
 using Microsoft.SemanticKernel.Planning;
 
 using var loggerFactory = LoggerFactory.Create(builder =>
@@ -26,7 +27,7 @@ var kernel = new KernelBuilder()
 var logger = kernel.LoggerFactory.CreateLogger(nameof(Plugins.MotorPlugin));
 
 // import native functions from MotorPlugin
-var motorPlugin = kernel.ImportSkill(new Plugins.MotorPlugin(logger));
+var motorPlugin = kernel.ImportFunctions(new Plugins.MotorPlugin(logger));
 
 var planner = new SequentialPlanner(kernel);
 
@@ -51,7 +52,7 @@ var asks = new List<string>
   "do a pretty complex evasive maneuver with a least 15 steps? Stop at every 5 steps.",
 };
 
-var isPlanExcutedStepByStep = false;
+var isPlanExecutedStepByStep = false;
 var isTransformingGoalIntoBasicCommands = true;
 
 foreach (var ask in asks)
@@ -65,17 +66,17 @@ foreach (var ask in asks)
         if (isTransformingGoalIntoBasicCommands)
         {
             // 1. Extract commands by creating and invoking an inline semantic function (naive approach, default arguments)
-            //var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingInlineSemanticFunctionAsync(ask);
+            var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingInlineSemanticFunctionAsync(ask);
 
             // 2. Extract commands by registering and running a semantic function (SK-like approach)
             //var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingRegisteredSemanticFunctionAsync(ask);
 
             // 3. Extract commands by importing a semantic function defined in a plugin (in our case, same as MotorPlugin)
-            var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingPluginSemanticFunctionAsync(ask);
+            //var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingPluginSemanticFunctionAsync(ask);
 
             logger.LogInformation("Extracted motor commands: {response}", extractedMotorCommandsFromAsk);
 
-            plan = await planner.CreatePlanAsync(extractedMotorCommandsFromAsk);
+            plan = await planner.CreatePlanAsync(extractedMotorCommandsFromAsk!);
         }
         else
         {
@@ -94,7 +95,7 @@ foreach (var ask in asks)
         continue;
     }
 
-    if (isPlanExcutedStepByStep)
+    if (isPlanExecutedStepByStep)
     {
         // execute plan step by step until complete or at most N steps
         var maxSteps = 10;
@@ -129,7 +130,7 @@ foreach (var ask in asks)
         try
         {
             var result = await kernel.RunAsync(plan);
-            logger.LogInformation("Plan result: {result}", result.Result);
+            logger.LogInformation("Plan result: {result}", result.FunctionResults);
         }
         catch (SKException ex)
         {

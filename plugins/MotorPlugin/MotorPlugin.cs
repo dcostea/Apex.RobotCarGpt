@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Orchestration;
-using Microsoft.SemanticKernel.SkillDefinition;
 
 namespace Plugins;
 
@@ -15,7 +15,6 @@ public class MotorPlugin
     }
 
     [SKFunction, Description("Moves the car backward.")]
-    [SKParameter("input", "Car movement status")]
     public string Backward(SKContext context)
     {
         var isStopped = context.Variables["input"].Contains("stopped");
@@ -26,7 +25,6 @@ public class MotorPlugin
     }
 
     [SKFunction, Description("Moves the car forward.")]
-    [SKParameter("input", "Car movement status")]
     public string Forward(SKContext context)
     {
         var isStopped = context.Variables["input"].Contains("stopped");
@@ -37,7 +35,6 @@ public class MotorPlugin
     }
 
     [SKFunction, Description("Stops the car.")]
-    [SKParameter("input", "Car movement status")]
     public string Stop(SKContext context)
     {
         var isStopped = context.Variables["input"].Contains("stopped");
@@ -48,7 +45,6 @@ public class MotorPlugin
     }
 
     [SKFunction, Description("Turns the car anticlockwise.")]
-    [SKParameter("input", "Car movement status")]
     public string TurnLeft(SKContext context)
     {
         var isStopped = context.Variables["input"].Contains("stopped");
@@ -59,7 +55,6 @@ public class MotorPlugin
     }
 
     [SKFunction, Description("Turns the car clockwise.")]
-    [SKParameter("input", "Car movement status")]
     public string TurnRight(SKContext context)
     {
         var isStopped = context.Variables["input"].Contains("stopped");

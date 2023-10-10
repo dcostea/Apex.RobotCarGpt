@@ -1,6 +1,7 @@
 ﻿using Microsoft.SemanticKernel.Orchestration;
-using Microsoft.SemanticKernel.SemanticFunctions;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.TemplateEngine.Basic;
+using Microsoft.SemanticKernel.Connectors.AI.OpenAI;
 
 namespace Commands;
 
@@ -10,96 +11,72 @@ public static class CommandExtractors
     const string MotorPlugin = nameof(MotorPlugin);
     const string ExtractBasicCommands = nameof(ExtractBasicCommands);
 
-    public async static Task<string> ExtractCommandsUsingInlineSemanticFunctionAsync(this IKernel kernel, string ask)
+    public async static Task<string?> ExtractCommandsUsingInlineSemanticFunctionAsync(this IKernel kernel, string ask)
     {
-        var extractMotorCommandsPrompt = """
+        const string ExtractMotorPromptTemplate = """
 You are a minimalistic car capable of performing some basic commands like go forward, go backward, turn left, turn right, and stop.
 Initial state of the car is stopped.
 Take this goal "{{$input}}" and create a list of basic commands, as enumerated above, to fulfill the goal. 
 """;
 
-        var extractMotorCommandsFunction = kernel.CreateSemanticFunction(extractMotorCommandsPrompt, maxTokens: 500);
-        var extractedMotorCommands = await extractMotorCommandsFunction.InvokeAsync(ask);
+        var openAIRequestSettings = new OpenAIRequestSettings
+        {
+            MaxTokens = 500,
+            Temperature = 0.0,
+            TopP = 0.0,
+            PresencePenalty = 0.0,
+            FrequencyPenalty = 0.0,
+        };
+        var extractMotorCommandsFunction = kernel.CreateSemanticFunction(ExtractMotorPromptTemplate, requestSettings: openAIRequestSettings);
 
-        return extractedMotorCommands.Result;
+        var extractedMotorCommands = await kernel.RunAsync(ask, extractMotorCommandsFunction);
+
+        return extractedMotorCommands.FunctionResults.First().GetValue<string>();
     }
 
-    public async static Task<string> ExtractCommandsUsingRegisteredSemanticFunctionAsync(this IKernel kernel, string ask)
+    public async static Task<string?> ExtractCommandsUsingRegisteredSemanticFunctionAsync(this IKernel kernel, string ask)
     {
-        var extractMotorCommandsPrompt = """
+        const string ExtractMotorPromptTemplate = """
 You are a minimalistic car capable of performing some basic commands like {{$commands}}.
 Initial state of the car is stopped.
 Take this goal "{{$input}}" and create a list of basic commands, as enumerated above, to fulfill the goal. 
 """;
 
-        var promptConfig = new PromptTemplateConfig
+        var variables = new ContextVariables(ask);
+        variables.Set("commands", "go forward, go backward, turn left, turn right, and stop");
+
+        // render prompt for debugging
+        Console.WriteLine("--- Rendered Prompt");
+        var promptRenderer = new BasicPromptTemplateEngine();
+        var renderedPrompt = await promptRenderer.RenderAsync(ExtractMotorPromptTemplate, kernel.CreateNewContext(variables));
+        Console.WriteLine(renderedPrompt);
+
+        var openAIRequestSettings = new OpenAIRequestSettings
         {
-            Schema = 1,
-            Type = "completion",
-            Description = "Create a list of basic commands.",
-            Completion =
-            {
-                MaxTokens = 500,
-                Temperature = 0.0,
-                TopP = 0.0,
-                PresencePenalty = 0.0,
-                FrequencyPenalty = 0.0
-            },
-            Input =
-            {
-                Parameters = new List<PromptTemplateConfig.InputParameter>
-                {
-                    new PromptTemplateConfig.InputParameter
-                    {
-                        Name = "input",
-                        Description = "The car action.",
-                        DefaultValue = ""
-                    },
-                    new PromptTemplateConfig.InputParameter
-                    {
-                        Name = "commands",
-                        Description = "The commands to choose from.",
-                        DefaultValue = ""
-                    },
-                }
-            }
+            MaxTokens = 500,
+            Temperature = 0.0,
+            TopP = 0.0,
+            PresencePenalty = 0.0,
+            FrequencyPenalty = 0.0,
         };
 
-        var variables = new ContextVariables
-        {
-            ["input"] = ask,
-            ["commands"] = "go forward, go backward, turn left, turn right, and stop"
-        };
-
-        var promptTemplate = new PromptTemplate(
-            extractMotorCommandsPrompt,
-            promptConfig,
-            kernel
-        );
-
-        // register a semantic function
-        var functionConfig = new SemanticFunctionConfig(promptConfig, promptTemplate);
-        var extractMotorCommandsFunction = kernel.RegisterSemanticFunction(MotorPlugin, ExtractBasicCommands, functionConfig);
+        var extractMotorCommandsFunction = kernel.CreateSemanticFunction(ExtractMotorPromptTemplate, requestSettings: openAIRequestSettings);
 
         var extractedMotorCommands = await kernel.RunAsync(extractMotorCommandsFunction, variables);
-
-        return extractedMotorCommands.Result;
+        
+        return extractedMotorCommands.FunctionResults.First().GetValue<string>();
     }
 
-    public async static Task<string> ExtractCommandsUsingPluginSemanticFunctionAsync(this IKernel kernel, string ask)
+    public async static Task<string?> ExtractCommandsUsingPluginSemanticFunctionAsync(this IKernel kernel, string ask)
     {
-        var variables = new ContextVariables
-        {
-            ["input"] = ask,
-            ["commands"] = "go forward, go backward, turn left, turn right, and stop"
-        };
+        var variables = new ContextVariables(ask);
+        variables.Set("commands", "go forward, go backward, turn left, turn right, and stop");
 
         // import semantic functions from MotorPlugin
         var pluginsDirectory = Path.Combine(Directory.GetCurrentDirectory(), Plugins);
-        var semanticMotorPlugin = kernel.ImportSemanticSkillFromDirectory(pluginsDirectory, MotorPlugin);
-
+        var semanticMotorPlugin = kernel.ImportSemanticFunctionsFromDirectory(pluginsDirectory, MotorPlugin);
         var extractedMotorCommands = await kernel.RunAsync(variables, semanticMotorPlugin[ExtractBasicCommands]);
 
-        return extractedMotorCommands.Result;
+        return extractedMotorCommands.FunctionResults.First().GetValue<string>();
     }
 }
