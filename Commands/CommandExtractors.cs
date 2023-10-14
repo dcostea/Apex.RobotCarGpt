@@ -2,6 +2,8 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.TemplateEngine.Basic;
 using Microsoft.SemanticKernel.Connectors.AI.OpenAI;
+using Microsoft.SemanticKernel.SemanticFunctions;
+using Microsoft.SemanticKernel.AI;
 
 namespace Commands;
 
@@ -14,29 +16,6 @@ public static class CommandExtractors
     public async static Task<string?> ExtractCommandsUsingInlineSemanticFunctionAsync(this IKernel kernel, string ask)
     {
         const string ExtractMotorPromptTemplate = """
-You are a minimalistic car capable of performing some basic commands like go forward, go backward, turn left, turn right, and stop.
-Initial state of the car is stopped.
-Take this goal "{{$input}}" and create a list of basic commands, as enumerated above, to fulfill the goal. 
-""";
-
-        var openAIRequestSettings = new OpenAIRequestSettings
-        {
-            MaxTokens = 500,
-            Temperature = 0.0,
-            TopP = 0.0,
-            PresencePenalty = 0.0,
-            FrequencyPenalty = 0.0,
-        };
-        var extractMotorCommandsFunction = kernel.CreateSemanticFunction(ExtractMotorPromptTemplate, requestSettings: openAIRequestSettings);
-
-        var extractedMotorCommands = await kernel.RunAsync(ask, extractMotorCommandsFunction);
-
-        return extractedMotorCommands.FunctionResults.First().GetValue<string>();
-    }
-
-    public async static Task<string?> ExtractCommandsUsingRegisteredSemanticFunctionAsync(this IKernel kernel, string ask)
-    {
-        const string ExtractMotorPromptTemplate = """
 You are a minimalistic car capable of performing some basic commands like {{$commands}}.
 Initial state of the car is stopped.
 Take this goal "{{$input}}" and create a list of basic commands, as enumerated above, to fulfill the goal. 
@@ -45,7 +24,7 @@ Take this goal "{{$input}}" and create a list of basic commands, as enumerated a
         var variables = new ContextVariables(ask);
         variables.Set("commands", "go forward, go backward, turn left, turn right, and stop");
 
-        // render prompt for debugging
+        // render prompt for debugging purposes
         Console.WriteLine("--- Rendered Prompt");
         var promptRenderer = new BasicPromptTemplateEngine();
         var renderedPrompt = await promptRenderer.RenderAsync(ExtractMotorPromptTemplate, kernel.CreateNewContext(variables));
@@ -59,11 +38,57 @@ Take this goal "{{$input}}" and create a list of basic commands, as enumerated a
             PresencePenalty = 0.0,
             FrequencyPenalty = 0.0,
         };
-
         var extractMotorCommandsFunction = kernel.CreateSemanticFunction(ExtractMotorPromptTemplate, requestSettings: openAIRequestSettings);
 
         var extractedMotorCommands = await kernel.RunAsync(extractMotorCommandsFunction, variables);
-        
+
+        return extractedMotorCommands.FunctionResults.First().GetValue<string>();
+    }
+
+    public async static Task<string?> ExtractCommandsUsingRegisteredSemanticFunctionAsync(this IKernel kernel, string ask)
+    {
+        const string ExtractMotorPromptTemplate = """
+You are a minimalistic car capable of performing some basic commands like {{$commands}}.
+Initial state of the car is stopped.
+Take this goal "{{$input}}" and create a list of basic commands, as enumerated above, to fulfill the goal. 
+""";
+
+        var promptConfig = new PromptTemplateConfig
+        {
+            Description = "Create a list of basic commands.",
+            ModelSettings = new List<AIRequestSettings>
+            {
+                new OpenAIRequestSettings
+                {
+                    MaxTokens = 500,
+                    Temperature = 0.0,
+                    TopP = 0.0,
+                    PresencePenalty = 0.0,
+                    FrequencyPenalty = 0.0
+                }
+            },
+            Input = new PromptTemplateConfig.InputConfig
+            {
+                Parameters = new List<PromptTemplateConfig.InputParameter>
+                {
+                    new() {
+                        Name = "input",
+                        Description = "Goal to be fulfilled.",
+                        DefaultValue = ask
+                    },
+                    new() {
+                        Name = "commands",
+                        Description = "Basic motor commands.",
+                        DefaultValue = "go forward, go backward, turn left, turn right, and stop"
+                    },
+                }
+            }
+        };
+
+        var extractMotorCommandsFunction = kernel.CreateSemanticFunction(ExtractMotorPromptTemplate, promptConfig, "ExtractMotorCommands", "MotorPlugin");
+
+        var extractedMotorCommands = await kernel.RunAsync(extractMotorCommandsFunction);
+
         return extractedMotorCommands.FunctionResults.First().GetValue<string>();
     }
 

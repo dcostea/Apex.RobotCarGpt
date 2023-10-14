@@ -27,7 +27,7 @@ var kernel = new KernelBuilder()
 var logger = kernel.LoggerFactory.CreateLogger(nameof(Plugins.MotorPlugin));
 
 // import native functions from MotorPlugin
-var motorPlugin = kernel.ImportFunctions(new Plugins.MotorPlugin(logger));
+_ = kernel.ImportFunctions(new Plugins.MotorPlugin(logger));
 
 var planner = new SequentialPlanner(kernel);
 
@@ -66,13 +66,13 @@ foreach (var ask in asks)
         if (isTransformingGoalIntoBasicCommands)
         {
             // 1. Extract commands by creating and invoking an inline semantic function (naive approach, default arguments)
-            var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingInlineSemanticFunctionAsync(ask);
+            //var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingInlineSemanticFunctionAsync(ask);
 
             // 2. Extract commands by registering and running a semantic function (SK-like approach)
             //var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingRegisteredSemanticFunctionAsync(ask);
 
             // 3. Extract commands by importing a semantic function defined in a plugin (in our case, same as MotorPlugin)
-            //var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingPluginSemanticFunctionAsync(ask);
+            var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingPluginSemanticFunctionAsync(ask);
 
             logger.LogInformation("Extracted motor commands: {response}", extractedMotorCommandsFromAsk);
 
