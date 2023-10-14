@@ -19,7 +19,7 @@
       {
         "name": "commands",
         "description": "The commands to choose from.",
-        "defaultValue": ""
+        "defaultValue": "go forward, go backward, turn left, turn right, and stop"
       }
     ]
   }

@@ -73,12 +73,12 @@ Take this goal "{{$input}}" and create a list of basic commands, as enumerated a
                 {
                     new() {
                         Name = "input",
-                        Description = "Goal to be fulfilled.",
+                        Description = "The car action.",
                         DefaultValue = ask
                     },
                     new() {
                         Name = "commands",
-                        Description = "Basic motor commands.",
+                        Description = "The commands to chose from.",
                         DefaultValue = "go forward, go backward, turn left, turn right, and stop"
                     },
                 }
