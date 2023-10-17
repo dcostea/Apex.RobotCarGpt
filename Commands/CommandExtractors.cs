@@ -2,8 +2,8 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.TemplateEngine.Basic;
 using Microsoft.SemanticKernel.Connectors.AI.OpenAI;
-using Microsoft.SemanticKernel.SemanticFunctions;
 using Microsoft.SemanticKernel.AI;
+using Microsoft.SemanticKernel.TemplateEngine;
 
 namespace Commands;
 

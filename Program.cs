@@ -37,19 +37,17 @@ var asks = new List<string>
   "go 10 steps where each step is a randomly selected step like forward, backward, and turning left or right?",
   "avoid the tree in front of the car?",
   "move forward, turn left, forward and return in the same place where it started?",
+  "do a full circle by turning left followed by a full circle by turning right?",
+  "run away?",
+  "do an evasive maneuver?",
+  "do a pretty complex evasive maneuver with a least 15 steps? Stop at every 5 steps.",
   "do the moonwalk dancing?",
   "move like a jellyfish?",
   "dance like a ballerina?",
-
   "go on square path?",
   "go on a full complete circle?",
   "go on a semi-circle?",
   "do a full 360 degrees rotation?",
-  "do a full circle by turning left followed by a full circle by turning right?",
-
-  "run away?",
-  "do an evasive maneuver?",
-  "do a pretty complex evasive maneuver with a least 15 steps? Stop at every 5 steps.",
 };
 
 var isPlanExecutedStepByStep = false;
