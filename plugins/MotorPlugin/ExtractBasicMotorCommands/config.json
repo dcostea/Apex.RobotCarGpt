@@ -13,13 +13,11 @@
     "parameters": [
       {
         "name": "input",
-        "description": "The car action.",
-        "defaultValue": ""
+        "description": "The car action."
       },
       {
         "name": "commands",
         "description": "The commands to choose from.",
-        "defaultValue": "go forward, go backward, turn left, turn right, and stop"
       }
     ]
   }

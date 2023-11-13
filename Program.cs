@@ -11,7 +11,7 @@ using var loggerFactory = LoggerFactory.Create(builder =>
         .AddFilter("Microsoft", LogLevel.Warning)
         .AddFilter("System", LogLevel.Warning)
         .AddFilter("Plugins.MotorPlugin", LogLevel.Warning)
-        .AddFilter("Microsoft.SemanticKernel", LogLevel.Debug)
+        .AddFilter("Microsoft.SemanticKernel", LogLevel.Warning)
         .AddFilter("Microsoft.SemanticKernel.SkillDefinition", LogLevel.Warning)
         .AddFilter("Microsoft.SemanticKernel.Connectors", LogLevel.Warning)
         .SetMinimumLevel(LogLevel.Debug)
@@ -25,11 +25,6 @@ var kernel = new KernelBuilder()
     .Build();
 
 var logger = kernel.LoggerFactory.CreateLogger(nameof(Plugins.MotorPlugin));
-
-// import native functions from MotorPlugin
-_ = kernel.ImportFunctions(new Plugins.MotorPlugin(logger));
-
-var planner = new SequentialPlanner(kernel);
 
 var asks = new List<string>
 {
@@ -50,89 +45,74 @@ var asks = new List<string>
   "do a full 360 degrees rotation?",
 };
 
-var isPlanExecutedStepByStep = false;
-var isTransformingGoalIntoBasicCommands = true;
+var isTransformingGoalIntoBasicMotorCommands = true;
 
 foreach (var ask in asks)
 {
     Plan plan = null!;
 
+    logger.LogInformation(new string('-', 80));
     logger.LogInformation("ASK: {ask}", ask);
 
     try
     {
-        if (isTransformingGoalIntoBasicCommands)
+        if (isTransformingGoalIntoBasicMotorCommands)
         {
-            // 1. Extract commands by creating and invoking an inline semantic function (naive approach, default arguments)
-            //var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingInlineSemanticFunctionAsync(ask);
+            const string Commands = "go forward, go backward, turn left, turn right, and stop";
 
-            // 2. Extract commands by registering and running a semantic function (SK-like approach)
-            //var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingRegisteredSemanticFunctionAsync(ask);
+            // 1. Extract basic motor commands by creating and invoking an inline semantic function (naive approach, default arguments)
+            //var extractedBasicMotorCommandsFromAsk = await kernel.ExtractBasicCommandsUsingInlineSemanticFunctionAsync(ask, Commands, logger);
 
-            // 3. Extract commands by importing a semantic function defined in a plugin (in our case, same as MotorPlugin)
-            var extractedMotorCommandsFromAsk = await kernel.ExtractCommandsUsingPluginSemanticFunctionAsync(ask);
+            // 2. Extract basic motor commands by registering and running a semantic function (SK-like approach)
+            //var extractedBasicMotorCommandsFromAsk = await kernel.ExtractBasicCommandsUsingRegisteredSemanticFunctionAsync(ask, Commands);
 
-            logger.LogInformation("Extracted motor commands: {response}", extractedMotorCommandsFromAsk);
+            // 3. Extract basic motor commands by importing a semantic function defined in a plugin (in our case, same as MotorPlugin)
+            var extractedBasicMotorCommandsFromAsk = await kernel.ExtractBasicCommandsUsingPluginSemanticFunctionAsync(ask, Commands);
 
-            plan = await planner.CreatePlanAsync(extractedMotorCommandsFromAsk!);
+            logger.LogInformation("[START EXTRACTED BASIC MOTOR COMMANDS]\nExtracted basic motor commands: {extracted}\n[END EXTRACTED BASIC MOTOR COMMANDS]", extractedBasicMotorCommandsFromAsk);
+
+            // import native functions from MotorPlugin
+            _ = kernel.ImportFunctions(new Plugins.MotorPlugin(logger));
+            var planner = new SequentialPlanner(kernel);
+            plan = await planner.CreatePlanAsync(extractedBasicMotorCommandsFromAsk!);
         }
         else
         {
+            // import native functions from MotorPlugin
+            _ = kernel.ImportFunctions(new Plugins.MotorPlugin(logger));
+            var planner = new SequentialPlanner(kernel);
             plan = await planner.CreatePlanAsync(ask);
         }
 
-        // show steps as function name converted to arrows
-        var planStepsArrows = string.Join(" ", plan.Steps.Select(s => s.Name.ToUpper().ToArrow()));
-        Console.OutputEncoding = System.Text.Encoding.Unicode;
-        Console.WriteLine(planStepsArrows);
-        Console.WriteLine();
+
+        if (plan.Steps.Any())
+        {
+            // show steps as function name converted to arrows
+            var planStepsArrows = string.Join(" ", plan.Steps.Select(s => s.Name.ToUpper().ToArrow()));
+
+            // I'm using Console.WriteLine instead of logging because Unicode arrows are not supported by the logger
+            Console.OutputEncoding = System.Text.Encoding.Unicode;
+            Console.WriteLine(planStepsArrows);
+            Console.WriteLine();
+        }
+        else 
+        {
+            logger.LogInformation("No steps!");
+        }
     }
     catch (SKException exc)
     {
-        logger.LogError("Plan creation failed with exception: {message}", exc.Message);
+        logger.LogError("PLAN CREATION FAILED with exception: {message}", exc.Message);
         continue;
     }
 
-    if (isPlanExecutedStepByStep)
+    try
     {
-        // execute plan step by step until complete or at most N steps
-        var maxSteps = 10;
-        var input = string.Empty;
-        try
-        {
-            for (int step = 1; plan.HasNextStep && step < maxSteps; step++)
-            {
-                plan = string.IsNullOrEmpty(ask)
-                    ? await kernel.StepAsync(plan)
-                    : await kernel.StepAsync(input, plan);
-
-                input = string.Empty;
-
-                if (!plan.HasNextStep)
-                {
-                    logger.LogTrace("Step {step} - Results SO FAR: {plan.State} - COMPLETE!", step, plan.State);
-                    break;
-                }
-
-                logger.LogTrace("Step {step} - Results SO FAR: {plan.State}", step, plan.State);
-            }
-        }
-        catch (SKException ex)
-        {
-            logger.LogError("Step - Execution failed: {message}", ex.Message);
-        }
+        var result = await kernel.RunAsync(plan);
+        logger.LogInformation("PLAN RESULT: {result}", result.FunctionResults);
     }
-    else
+    catch (SKException ex)
     {
-        // execute plan in one go
-        try
-        {
-            var result = await kernel.RunAsync(plan);
-            logger.LogInformation("Plan result: {result}", result.FunctionResults);
-        }
-        catch (SKException ex)
-        {
-            logger.LogError("Plan execution failed: {message}", ex.Message);
-        }
+        logger.LogError("PLAN EXECUTION FAILED: {message}", ex.Message);
     }
 }
