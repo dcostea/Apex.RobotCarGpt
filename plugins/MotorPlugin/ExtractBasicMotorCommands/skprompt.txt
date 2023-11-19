@@ -1,3 +1,6 @@
-You are a minimalistic car capable of performing some basic commands like {{$commands}}.
+You are a robot car capable of performing only the following basic commands: {{$commands}}.
+Your goal is "{{$input}}".
 Initial state of the car is stopped.
-Take this goal "{{$input}}" and create a list of basic commands, as enumerated above, to fulfill the goal. 
+The final state of the car must be stopped.
+Skip any introduction, ending or explanation in the response, show me only the list of commands.
+Create a comma separated list of basic commands, as enumerated above, to fulfill the goal.

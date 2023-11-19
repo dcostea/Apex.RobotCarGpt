@@ -28,21 +28,21 @@ var logger = kernel.LoggerFactory.CreateLogger(nameof(Plugins.MotorPlugin));
 
 var asks = new List<string>
 {
-  "go like turn left forward turn right backward stop?",
-  "go 10 steps where each step is a randomly selected step like forward, backward, and turning left or right?",
-  "avoid the tree in front of the car?",
-  "move forward, turn left, forward and return in the same place where it started?",
-  "do a full circle by turning left followed by a full circle by turning right?",
-  "run away?",
-  "do an evasive maneuver?",
-  "do a pretty complex evasive maneuver with a least 15 steps? Stop at every 5 steps.",
-  "do the moonwalk dancing?",
-  "move like a jellyfish?",
-  "dance like a ballerina?",
-  "go on square path?",
-  "go on a full complete circle?",
-  "go on a semi-circle?",
-  "do a full 360 degrees rotation?",
+  "Go like turn left forward turn right backward stop.",
+  "Go 10 steps where each step is a randomly selected step like forward, backward, and turning left or right.",
+  "Avoid the tree in front of the car.",
+  "Move forward, turn left, forward and return in the same place where it started.",
+  "Do a full circle by turning left followed by a full circle by turning right.",
+  "Run away.",
+  "Do an evasive maneuver.",
+  "Do a pretty complex evasive maneuver with a least 15 steps. Stop at every 5 steps.",
+  "Do the moonwalk dancing.",
+  "Move like a jellyfish.",
+  "Dance like a ballerina.",
+  "Go on square path.",
+  "Go on a full complete circle.",
+  "Go on a semi-circle.",
+  "Do a full 360 degrees rotation.",
 };
 
 var isTransformingGoalIntoBasicMotorCommands = true;
@@ -69,7 +69,7 @@ foreach (var ask in asks)
             // 3. Extract basic motor commands by importing a semantic function defined in a plugin (in our case, same as MotorPlugin)
             var extractedBasicMotorCommandsFromAsk = await kernel.ExtractBasicCommandsUsingPluginSemanticFunctionAsync(ask, Commands);
 
-            logger.LogInformation("[START EXTRACTED BASIC MOTOR COMMANDS]\nExtracted basic motor commands: {extracted}\n[END EXTRACTED BASIC MOTOR COMMANDS]", extractedBasicMotorCommandsFromAsk);
+            logger.LogInformation("[START EXTRACTED BASIC MOTOR COMMANDS]\n{extracted}\n[END EXTRACTED BASIC MOTOR COMMANDS]", extractedBasicMotorCommandsFromAsk);
 
             // import native functions from MotorPlugin
             _ = kernel.ImportFunctions(new Plugins.MotorPlugin(logger));
@@ -109,7 +109,7 @@ foreach (var ask in asks)
     try
     {
         var result = await kernel.RunAsync(plan);
-        logger.LogInformation("PLAN RESULT: {result}", result.FunctionResults);
+        logger.LogInformation("PLAN RESULT: {result}", result.FunctionResults.First().GetValue<string>());
     }
     catch (SKException ex)
     {
