@@ -4,20 +4,18 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Diagnostics;
 using Microsoft.SemanticKernel.Planners;
 using Microsoft.SemanticKernel.Planning;
+using Serilog;
 
-using var loggerFactory = LoggerFactory.Create(builder =>
-{
-    builder
-        .AddFilter("Microsoft", LogLevel.Warning)
-        .AddFilter("System", LogLevel.Warning)
-        .AddFilter("Plugins.MotorPlugin", LogLevel.Warning)
-        .AddFilter("Microsoft.SemanticKernel", LogLevel.Warning)
-        .AddFilter("Microsoft.SemanticKernel.SkillDefinition", LogLevel.Warning)
-        .AddFilter("Microsoft.SemanticKernel.Connectors", LogLevel.Warning)
-        .SetMinimumLevel(LogLevel.Debug)
-        .AddConsole()
-        .AddDebug();
-});
+var loggerConfiguration = new LoggerConfiguration()
+    //.MinimumLevel.Debug()
+    .MinimumLevel.Information()
+    //.MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Debug)
+    .MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Warning)
+    .WriteTo.Console()
+    .CreateLogger();
+
+var loggerFactory = new LoggerFactory()
+    .AddSerilog(loggerConfiguration);
 
 var kernel = new KernelBuilder()
     .WithCompletionService()
@@ -30,7 +28,7 @@ var asks = new List<string>
 {
   "Go like turn left forward turn right backward stop.",
   "Go 10 steps where each step is a randomly selected step like forward, backward, and turning left or right.",
-  "Avoid the tree in front of the car.",
+  "You have a tree in front of the car. Avoid it.",
   "Move forward, turn left, forward and return in the same place where it started.",
   "Do a full circle by turning left followed by a full circle by turning right.",
   "Run away.",
@@ -51,7 +49,7 @@ foreach (var ask in asks)
 {
     Plan plan = null!;
 
-    logger.LogInformation(new string('-', 80));
+    logger.LogInformation("----------------------------------------------------------------------------------------------------");
     logger.LogInformation("ASK: {ask}", ask);
 
     try
@@ -60,16 +58,13 @@ foreach (var ask in asks)
         {
             const string Commands = "go forward, go backward, turn left, turn right, and stop";
 
-            // 1. Extract basic motor commands by creating and invoking an inline semantic function (naive approach, default arguments)
+            // 1. Extract basic motor commands by creating and invoking an inline semantic function (naive approach)
             //var extractedBasicMotorCommandsFromAsk = await kernel.ExtractBasicCommandsUsingInlineSemanticFunctionAsync(ask, Commands, logger);
 
-            // 2. Extract basic motor commands by registering and running a semantic function (SK-like approach)
-            //var extractedBasicMotorCommandsFromAsk = await kernel.ExtractBasicCommandsUsingRegisteredSemanticFunctionAsync(ask, Commands);
-
-            // 3. Extract basic motor commands by importing a semantic function defined in a plugin (in our case, same as MotorPlugin)
+            // 2. Extract basic motor commands by importing a semantic function defined in a custom plugin (in our case, same as MotorPlugin)
             var extractedBasicMotorCommandsFromAsk = await kernel.ExtractBasicCommandsUsingPluginSemanticFunctionAsync(ask, Commands);
 
-            logger.LogInformation("[START EXTRACTED BASIC MOTOR COMMANDS]\n{extracted}\n[END EXTRACTED BASIC MOTOR COMMANDS]", extractedBasicMotorCommandsFromAsk);
+            logger.LogInformation("EXTRACTED COMMANDS: {extracted}", extractedBasicMotorCommandsFromAsk);
 
             // import native functions from MotorPlugin
             _ = kernel.ImportFunctions(new Plugins.MotorPlugin(logger));
@@ -89,11 +84,7 @@ foreach (var ask in asks)
         {
             // show steps as function name converted to arrows
             var planStepsArrows = string.Join(" ", plan.Steps.Select(s => s.Name.ToUpper().ToArrow()));
-
-            // I'm using Console.WriteLine instead of logging because Unicode arrows are not supported by the logger
-            Console.OutputEncoding = System.Text.Encoding.Unicode;
-            Console.WriteLine(planStepsArrows);
-            Console.WriteLine();
+            logger.LogInformation("PLAN STEPS: {planStepsArrows}", planStepsArrows);
         }
         else 
         {

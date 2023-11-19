@@ -1,66 +1,48 @@
 ﻿using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Orchestration;
 
 namespace Plugins;
 
-public class MotorPlugin
+public class MotorPlugin(ILogger _logger)
 {
-    private readonly ILogger _logger;
-
-    public MotorPlugin(ILogger logger)
-    {
-        _logger = logger;
-    }
-
     [SKFunction, Description("Moves the car backward.")]
-    public string Backward(SKContext context)
+    public string Backward([Description("The current state of the car.")] string input)
     {
-        var isStopped = context.Variables["input"].Contains("stopped");
-        var state = isStopped ? "stopped" : "moving";
-        _logger.LogTrace("The car was {state} and now is moving backward.", state);
+        _logger.LogDebug("COMMAND: The car was {state} and now is moving backward.", input);
 
-        return $"moving";
+        return "moving";
     }
 
     [SKFunction, Description("Moves the car forward.")]
-    public string Forward(SKContext context)
+    public string Forward([Description("The current state of the car.")] string input)
     {
-        var isStopped = context.Variables["input"].Contains("stopped");
-        var state = isStopped ? "stopped" : "moving";
-        _logger.LogTrace("The car was {state} and now is moving forward.", state);
+        _logger.LogDebug("COMMAND: The car was {state} and now is moving forward.", input);
 
-        return $"moving";
+        return "moving";
     }
 
     [SKFunction, Description("Stops the car.")]
-    public string Stop(SKContext context)
+    public string Stop([Description("The current state of the car.")] string input)
     {
-        var isStopped = context.Variables["input"].Contains("stopped");
-        var state = isStopped ? "stopped" : "moving";
-        _logger.LogTrace("The car was {state} and now is stopping.", state);
+        _logger.LogDebug("COMMAND: The car was {state} and now is stopping.", input);
 
-        return $"stopped";
+        return "stopped";
     }
 
     [SKFunction, Description("Turns the car anticlockwise.")]
-    public string TurnLeft(SKContext context)
+    public string TurnLeft([Description("The current state of the car.")] string input)
     {
-        var isStopped = context.Variables["input"].Contains("stopped");
-        var state = isStopped ? "stopped" : "moving";
-        _logger.LogTrace("The car was {state} and now is turning left.", state);
+        _logger.LogDebug("COMMAND: The car was {state} and now is turning left.", input);
 
-        return $"moving";
+        return "moving";
     }
 
     [SKFunction, Description("Turns the car clockwise.")]
-    public string TurnRight(SKContext context)
+    public string TurnRight([Description("The current state of the car.")] string input)
     {
-        var isStopped = context.Variables["input"].Contains("stopped");
-        var state = isStopped ? "stopped" : "moving";
-        _logger.LogTrace("The car was {state} and now is turning right.", state);
+        _logger.LogDebug("COMMAND: The car was {state} and now is turning right.", input);
 
-        return $"moving";
+        return "moving";
     }
 }

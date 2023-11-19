@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "type": "completion",
-  "description": "Create a list of basic commands.",
+  "description": "Extract basic motor commands.",
   "completion": {
     "max_tokens": 500,
     "temperature": 0.0,
@@ -13,11 +13,11 @@
     "parameters": [
       {
         "name": "input",
-        "description": "The car action."
+        "description": "The car state."
       },
       {
         "name": "commands",
-        "description": "The commands to choose from.",
+        "description": "The commands to choose from."
       }
     ]
   }

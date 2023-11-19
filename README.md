@@ -1,3 +1,7 @@
+## Visual Studio 2022
+Right-click on solution -> Manage User Secrets
+
+
 ### Using .NET [Secret Manager](https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets)
 
 Configure an OpenAI endpoint
@@ -6,7 +10,6 @@ Configure an OpenAI endpoint
 cd Apex.RobotCarGpt
 
 dotnet user-secrets set "Global:LlmService" "OpenAI"
-
 dotnet user-secrets set "OpenAI:ModelType" "chat-completion"
 dotnet user-secrets set "OpenAI:ChatCompletionModelId" "gpt-3.5-turbo"
 dotnet user-secrets set "OpenAI:ApiKey" "... your OpenAI key ..."
@@ -19,7 +22,6 @@ Configure an Azure OpenAI endpoint
 cd Apex.RobotCarGpt
 
 dotnet user-secrets set "Global:LlmService" "AzureOpenAI"
-
 dotnet user-secrets set "AzureOpenAI:DeploymentType" "chat-completion"
 dotnet user-secrets set "AzureOpenAI:ChatCompletionDeploymentName" "gpt-35-turbo"
 dotnet user-secrets set "AzureOpenAI:Endpoint" "... your Azure OpenAI endpoint ..."

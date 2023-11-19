@@ -2,7 +2,6 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.TemplateEngine.Basic;
 using Microsoft.SemanticKernel.Connectors.AI.OpenAI;
-using Microsoft.SemanticKernel.AI;
 using Microsoft.SemanticKernel.TemplateEngine;
 using Microsoft.Extensions.Logging;
 
@@ -10,113 +9,57 @@ namespace Commands;
 
 public static class CommandExtractors
 {
-    const string Plugins = nameof(Plugins);
-    const string MotorPlugin = nameof(MotorPlugin);
-    const string ExtractBasicMotorCommands = nameof(ExtractBasicMotorCommands);
+    const string Plugins = "plugins";                       // plugins folder
+    const string MotorPlugin = nameof(MotorPlugin);         // plugin name
+    const string ExtractBasicMotorCommandsSemanticFunction = nameof(ExtractBasicMotorCommandsSemanticFunction);
 
     public async static Task<string?> ExtractBasicCommandsUsingInlineSemanticFunctionAsync(this IKernel kernel, string ask, string commands, ILogger logger)
     {
         const string ExtractBasicMotorPromptTemplate = """
-You are a minimalistic car capable of performing some basic commands like {{$commands}}.
+You are a robot car capable of performing only the following allowed basic commands: {{ $commands }}.
 Initial state of the car is stopped.
-Take this goal "{{$input}}" and create a list of basic commands, as enumerated above, to fulfill the goal. 
+The last state of the car is stopped.
+Your goal is "{{ $input }}".
+Create a comma separated list of basic commands, as enumerated above, to fulfill the goal.
+Remove any introduction, ending or explanation from the response, show me only the list of allowed commands.
 """;
 
-        // render prompt for debugging purposes
+        var variables = new ContextVariables(ask);
+        variables.Set("commands", commands);
+
         var promptRenderer = new BasicPromptTemplateFactory();
         var promptTemplateConfig = new PromptTemplateConfig 
         {
-            Input = new PromptTemplateConfig.InputConfig
-            {
-                Parameters = new List<PromptTemplateConfig.InputParameter>
-                {
-                    new()
-                    {
-                        Name = "input",
-                        Description = "The car action."
-                    },
-                    new()
-                    {
-                        Name = "commands",
-                        Description = "The commands to chose from."
-                    },
-                }
-            }   
-        };
-
-        var variables = new ContextVariables(ask);
-        variables.Set("commands", commands);
-
-        var renderedPromptTemplate = promptRenderer.Create(ExtractBasicMotorPromptTemplate, promptTemplateConfig);
-        var renderedPrompt = await renderedPromptTemplate.RenderAsync(kernel.CreateNewContext(variables));
-        logger.LogDebug("[START RENDERED PROMPT]\n{renderedPrompt}\n[END RENDERED PROMPT]", renderedPrompt);
-
-        var openAIRequestSettings = new OpenAIRequestSettings
-        {
-            MaxTokens = 500,
-            Temperature = 0.0,
-            TopP = 0.0,
-            PresencePenalty = 0.0,
-            FrequencyPenalty = 0.0,
-        };
-
-        if (!kernel.Functions.TryGetFunction(MotorPlugin, ExtractBasicMotorCommands, out var extractBasicMotorCommandsFunction))
-        {
-            extractBasicMotorCommandsFunction = kernel.CreateSemanticFunction(ExtractBasicMotorPromptTemplate, requestSettings: openAIRequestSettings);
-        }
-
-        var extractedBasicMotorCommands = await kernel.RunAsync(extractBasicMotorCommandsFunction, variables);
-
-        return extractedBasicMotorCommands.FunctionResults.First().GetValue<string>();
-    }
-
-    public async static Task<string?> ExtractBasicCommandsUsingRegisteredSemanticFunctionAsync(this IKernel kernel, string ask, string commands)
-    {
-        const string ExtractBasicMotorPromptTemplate = """
-You are a minimalistic car capable of performing some basic commands like {{$commands}}.
-Initial state of the car is stopped.
-Take this goal "{{$input}}" and create a list of basic commands, as enumerated above, to fulfill the goal. 
-""";
-
-        var promptConfig = new PromptTemplateConfig
-        {
-            Description = "Create a list of basic commands.",
-            ModelSettings = new List<AIRequestSettings>
-            {
+            Description = "Extract basic motor commands.",
+            ModelSettings =
+            [
                 new OpenAIRequestSettings
                 {
                     MaxTokens = 500,
-                    Temperature = 0.0,
-                    TopP = 0.0,
-                    PresencePenalty = 0.0,
-                    FrequencyPenalty = 0.0
+                    Temperature = 0.0
                 }
-            },
+            ],
             Input = new PromptTemplateConfig.InputConfig
             {
-                Parameters = new List<PromptTemplateConfig.InputParameter>
-                {
-                    new() {
-                        Name = "input",
-                        Description = "The car action."
-                    },
-                    new() {
-                        Name = "commands",
-                        Description = "The commands to chose from."
-                    },
-                }
+                Parameters =
+                [
+                    new() { Name = "input", Description = "The car state." },
+                    new() { Name = "commands", Description = "The commands to chose from." },
+                ]
             }
         };
 
-        var variables = new ContextVariables(ask);
-        variables.Set("commands", commands);
-        
-        if (!kernel.Functions.TryGetFunction(MotorPlugin, ExtractBasicMotorCommands, out var extractBasicMotorCommandsFunction))
+        // Render prompt for debugging purposes
+        var renderedPromptTemplate = promptRenderer.Create(ExtractBasicMotorPromptTemplate, promptTemplateConfig);
+        var renderedPrompt = await renderedPromptTemplate.RenderAsync(kernel.CreateNewContext(variables));
+        logger.LogDebug("RENDERED PROMPT: {renderedPrompt}", renderedPrompt);
+
+        if (!kernel.Functions.TryGetFunction(MotorPlugin, ExtractBasicMotorCommandsSemanticFunction, out var extractBasicMotorCommandsSemanticFunction))
         {
-            extractBasicMotorCommandsFunction = kernel.CreateSemanticFunction(ExtractBasicMotorPromptTemplate, promptConfig, ExtractBasicMotorCommands, MotorPlugin);
+            extractBasicMotorCommandsSemanticFunction = kernel.CreateSemanticFunction(ExtractBasicMotorPromptTemplate, promptTemplateConfig);
         }
 
-        var extractedBasicMotorCommands = await kernel.RunAsync(extractBasicMotorCommandsFunction, variables);
+        var extractedBasicMotorCommands = await kernel.RunAsync(extractBasicMotorCommandsSemanticFunction, variables);
 
         return extractedBasicMotorCommands.FunctionResults.First().GetValue<string>();
     }
@@ -126,16 +69,15 @@ Take this goal "{{$input}}" and create a list of basic commands, as enumerated a
         var variables = new ContextVariables(ask);
         variables.Set("commands", commands);
 
-        // import semantic functions from MotorPlugin
         var pluginsDirectory = Path.Combine(Directory.GetCurrentDirectory(), Plugins);
 
-        if (!kernel.Functions.TryGetFunction(MotorPlugin, ExtractBasicMotorCommands, out var extractBasicMotorCommandsFunction))
+        if (!kernel.Functions.TryGetFunction(MotorPlugin, ExtractBasicMotorCommandsSemanticFunction, out var extractBasicMotorCommandsSemanticFunction))
         {
             var semanticMotorPluginFunctions = kernel.ImportSemanticFunctionsFromDirectory(pluginsDirectory, MotorPlugin);
-            extractBasicMotorCommandsFunction = semanticMotorPluginFunctions[ExtractBasicMotorCommands];
+            extractBasicMotorCommandsSemanticFunction = semanticMotorPluginFunctions[ExtractBasicMotorCommandsSemanticFunction];
         }
 
-        var extractedBasicMotorCommands = await kernel.RunAsync(extractBasicMotorCommandsFunction, variables);
+        var extractedBasicMotorCommands = await kernel.RunAsync(extractBasicMotorCommandsSemanticFunction, variables);
 
         return extractedBasicMotorCommands.FunctionResults.First().GetValue<string>();
     }
