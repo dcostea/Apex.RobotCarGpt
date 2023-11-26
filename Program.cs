@@ -31,9 +31,11 @@ const string ExtractBasicMotorCommands = nameof(ExtractBasicMotorCommands);
 
 const string ExtractBasicMotorPromptTemplate = """
 You are a robot car capable of performing only the following allowed basic commands: {{ $commands }}.
-Initial state of the car is stopped.
-The last state of the car is stopped.
-Your goal is "{{ $input }}".
+Initial state of the car is stopped. The last state of the car is stopped.
+You need to:
+[START ACTION TO BE PERFORMED]
+{{ $input }}
+[END ACTION TO BE PERFORMED]
 Create a comma separated list of basic commands, as enumerated above, to fulfill the goal.
 Remove any introduction, ending or explanation from the response, show me only the list of allowed commands.
 """;
@@ -75,7 +77,7 @@ var promptTemplateConfig = new PromptTemplateConfig
     {
         Parameters =
         [
-            new() { Name = "input", Description = "The goal." },
+            new() { Name = "input", Description = "Action to be performed." },
             new() { Name = "commands", Description = "The commands to chose from." },
         ]
     }
@@ -85,7 +87,7 @@ var renderedPromptTemplate = promptRenderer.Create(ExtractBasicMotorPromptTempla
 
 // 0. Configure how to run
 
-const bool CreatePlanWithRefinedAsk = false;
+const bool CreatePlanWithRefinedAsk = true;
 const bool CreateInlineSemanticFunction = true;
 
 
