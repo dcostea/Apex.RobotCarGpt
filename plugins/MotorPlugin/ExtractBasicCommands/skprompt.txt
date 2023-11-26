@@ -1,0 +1,10 @@
+You are a robot car capable of performing only the following allowed basic commands: {{ $commands }}.
+Initial state of the car is stopped.
+The last state of the car is stopped.
+You need to:
+[START ACTION TO BE PERFORMED]
+{{ $input }}
+[END ACTION TO BE PERFORMED]
+Extract a list of basic commands from the action to be performed to fulfill the goal.
+Restrict the extracted list to the allowed basic commands enumerated above.
+Give me the list as a comma separated list. Remove any introduction, ending or explanation from the response, show me only the list of allowed commands.
