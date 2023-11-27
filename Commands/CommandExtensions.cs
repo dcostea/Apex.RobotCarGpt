@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel.Orchestration;
 using Microsoft.SemanticKernel.Planners;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.TemplateEngine;
 using Microsoft.SemanticKernel.Connectors.AI.OpenAI;
+using Microsoft.SemanticKernel.Planning;
 
 namespace Commands;
 
@@ -36,7 +36,7 @@ Give me the list as a comma separated list. Remove any introduction, ending or e
                 Temperature = 0.0
             }
         ],
-        Input = new PromptTemplateConfig.InputConfig
+        Input = new ()
         {
             Parameters =
             [
@@ -69,12 +69,41 @@ Remove any introduction, ending or explanation from the response, show me only t
                 Temperature = 0.0
             }
         ],
-        Input = new PromptTemplateConfig.InputConfig
+        Input = new ()
         {
             Parameters =
             [
                 new() { Name = "input", Description = "Action to be performed." },
                 new() { Name = "commands", Description = "The commands to chose from." },
+            ]
+        }
+    };
+
+    public const string ExecuteBasicCommand = nameof(ExecuteBasicCommand);
+    public const string ExecuteBasicCommandPromptTemplate = """
+Echo the next text back to me:
+Forward action is returning: {{ MotorPlugin.Forward $input }}
+Backward action is returning: {{ MotorPlugin.Backward $input }}
+Turn Left action is returning: {{ MotorPlugin.TurnLeft $input }}
+Turn Right action is returning: {{ MotorPlugin.TurnRight $input }}
+Stop action is returning: {{ MotorPlugin.Stop $input }}
+""";
+    public static readonly PromptTemplateConfig ExecuteBasicCommandPromptTemplateConfig = new()
+    {
+        Description = "Execute basic motor command.",
+        ModelSettings =
+        [
+            new OpenAIRequestSettings
+            {
+                MaxTokens = 500,
+                Temperature = 0.0
+            }
+        ],
+        Input = new()
+        {
+            Parameters =
+            [
+                new() { Name = "input", Description = "Action to be performed." },
             ]
         }
     };
@@ -99,7 +128,7 @@ Remove any introduction, ending or explanation from the response, show me only t
         return x;
     }
 
-    public static async Task CreateAndExecuteSequentialPlan(this IKernel kernel, string ask, ContextVariables variables, ILogger logger)
+    public static async Task<Plan> CreateSequentialPlan(this IKernel kernel, string ask, ILogger logger)
     {
         // Create sequential plan
 
@@ -117,56 +146,10 @@ Remove any introduction, ending or explanation from the response, show me only t
 
         logger.LogInformation("  PLAN STEPS: {arrows}", planStepsArrows);
 
-        // Execute sequential plan
-        var result = await kernel.RunAsync(plan, variables);
-
-        logger.LogDebug("  SEQUENTIAL PLAN RESULT: {result}", result.FunctionResults.First().GetValue<string>());
+        return plan;
     }
 
-    /// <summary>
-    /// Predefined functions chain
-    /// </summary>
-    /// <param name="kernel"></param>
-    /// <param name="commands"></param>
-    /// <param name="variables"></param>
-    /// <param name="logger"></param>
-    /// <returns></returns>
-    public static async Task CreateAndExecuteFunctionsChain(this IKernel kernel, IEnumerable<string> commands, ContextVariables variables, ILogger logger)
-    {
-        var functions = new List<ISKFunction>();
-        foreach (var command in commands)
-        {
-            logger.LogInformation("  ADDING {function} TO FUNCTIONS CHAIN", command);
-            functions.Add(kernel.Functions.GetFunction(MotorPlugin, command));
-        }
-
-        // Execute functions chain
-        var result = await kernel.RunAsync(variables, functions.ToArray());
-
-        logger.LogDebug("  FUNCTIONS CHAIN RESULT: {result}", result.FunctionResults.First().GetValue<string>());
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="kernel"></param>
-    /// <param name="ask"></param>
-    /// <param name="variables"></param>
-    /// <param name="logger"></param>
-    /// <returns></returns>
-    public static async Task CreateAndExecuteFunctionsAsSequenceOfActionPlan(this IKernel kernel, string ask, ContextVariables variables, ILogger logger)
-    {
-        var functions = ask.Split(',');
-
-        logger.LogInformation("REFINED ASK SPLIT IN FUNCTIONS:");
-        foreach (var function in functions)
-        {
-            logger.LogInformation("  FUNCTION: {function}", function);
-            await kernel.CreateAndExecuteActionPlan(function!, variables, logger);
-        }
-    }
-
-    public static async Task CreateAndExecuteActionPlan(this IKernel kernel, string ask, ContextVariables variables, ILogger logger)
+    public static async Task<Plan> CreateActionPlan(this IKernel kernel, string ask, ILogger logger)
     {
         // Create action plan
 
@@ -182,11 +165,8 @@ Remove any introduction, ending or explanation from the response, show me only t
             ? string.Join(" ", plan.Steps.Select(s => s.Name.ToArrow()))
             : "No steps!";
 
-        logger.LogInformation("  PLAN STEPS: {arrows}", planStepsArrows);
+        logger.LogInformation("  PLAN STEP: {arrows}", planStepsArrows);
 
-        // Execute action plan
-        var result = await kernel.RunAsync(plan, variables);
-
-        logger.LogDebug("  ACTION PLAN RESULT: {result}", result.FunctionResults.First().GetValue<string>());
+        return plan;
     }
 }

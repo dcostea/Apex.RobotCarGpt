@@ -1,0 +1,6 @@
+Echo the next text back to me:
+Forward action is returning: {{ MotorPlugin.Forward $input }}
+Backward action is returning: {{ MotorPlugin.Backward $input }}
+Turn Left action is returning: {{ MotorPlugin.TurnLeft $input }}
+Turn Right action is returning: {{ MotorPlugin.TurnRight $input }}
+Stop action is returning: {{ MotorPlugin.Stop $input }}
