@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using Microsoft.SemanticKernel;
+using System.Net;
 
 internal static class KernelBuilderExtensions
 {
@@ -11,51 +12,13 @@ internal static class KernelBuilderExtensions
     /// <exception cref="ArgumentException"></exception>
     internal static KernelBuilder WithCompletionService(this KernelBuilder kernelBuilder)
     {
-        switch (Env.Var("Global:LlmService")!)
-        {
-            case "AzureOpenAI":
-                if (Env.Var("AzureOpenAI:DeploymentType")! == "text-completion")
-                {
-                    kernelBuilder.WithAzureTextCompletionService(
-                        deploymentName: Env.Var("AzureOpenAI:TextCompletionDeploymentName")!,
-                        endpoint: Env.Var("AzureOpenAI:Endpoint")!,
-                        apiKey: Env.Var("AzureOpenAI:ApiKey")!
-                    );
-                }
-                else if (Env.Var("AzureOpenAI:DeploymentType")! == "chat-completion")
-                {
-                    kernelBuilder.WithAzureOpenAIChatCompletionService(
-                        deploymentName: Env.Var("AzureOpenAI:ChatCompletionDeploymentName")!,
-                        endpoint: Env.Var("AzureOpenAI:Endpoint")!,
-                        apiKey: Env.Var("AzureOpenAI:ApiKey")!,
-
-                        setAsDefault: true
-                    );
-                }
-                break;
-
-            case "OpenAI":
-                if (Env.Var("OpenAI:ModelType")! == "text-completion")
-                {
-                    kernelBuilder.WithOpenAITextCompletionService(
-                        modelId: Env.Var("OpenAI:TextCompletionModelId")!,
-                        apiKey: Env.Var("OpenAI:ApiKey")!,
-                        orgId: Env.Var("OpenAI:OrgId")
-                    );
-                }
-                else if (Env.Var("OpenAI:ModelType")! == "chat-completion")
-                {
-                    kernelBuilder.WithOpenAIChatCompletionService(
-                        modelId: Env.Var("OpenAI:ChatCompletionModelId")!,
-                        apiKey: Env.Var("OpenAI:ApiKey")!,
-                        orgId: Env.Var("OpenAI:OrgId")
-                    );
-                }
-                break;
-
-            default:
-                throw new ArgumentException($"Invalid service type value: {Env.Var("OpenAI:ModelType")}");
-        }
+        kernelBuilder.AddAzureOpenAIChatCompletion(
+                deploymentName: Env.Var("AzureOpenAI:ChatCompletionDeploymentName")!,
+                modelId: Env.Var("AzureOpenAI:TextCompletionModelId")!,
+                endpoint: Env.Var("AzureOpenAI:Endpoint")!,
+                serviceId: "AzureOpenAIChat",
+                apiKey: Env.Var("AzureOpenAI:ApiKey")!)
+            .Build();
 
         return kernelBuilder;
     }

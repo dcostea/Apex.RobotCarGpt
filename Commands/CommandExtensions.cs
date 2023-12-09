@@ -1,16 +1,15 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel.Planners;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.TemplateEngine;
+﻿using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.AI.OpenAI;
-using Microsoft.SemanticKernel.Planning;
+using Microsoft.SemanticKernel.Planning.Handlebars;
 
 namespace Commands;
 
 public static class CommandExtensions
 {
     public const string PluginsFolder = "plugins";
-    public const string MotorPlugin = nameof(MotorPlugin);
+
+    public const string CommandsPlugin = nameof(CommandsPlugin);
+
     public const string BasicCommands = "go forward, go backward, turn left, turn right, and stop";
 
     public const string ExtractBasicCommands = nameof(ExtractBasicCommands);
@@ -28,22 +27,20 @@ Give me the list as a comma separated list. Remove any introduction, ending or e
     public static readonly PromptTemplateConfig ExtractBasicCommandsPromptTemplateConfig = new()
     {
         Description = "Extract basic motor commands.",
-        ModelSettings =
-        [
-            new OpenAIRequestSettings
+        ExecutionSettings = [
+            new OpenAIPromptExecutionSettings
             {
                 MaxTokens = 500,
                 Temperature = 0.0
             }
         ],
-        Input = new ()
-        {
-            Parameters =
-            [
-                new() { Name = "input", Description = "Action to be performed." },
-                new() { Name = "commands", Description = "The commands to chose from." },
-            ]
-        }
+        InputVariables =
+        [
+            new() { Name = "input", Description = "Action to be performed." },
+            new() { Name = "commands", Description = "The commands to chose from." },
+        ],
+        Name = ExtractBasicCommands,
+        Template = ExtractBasicCommandsPromptTemplate
     };
 
     public const string ExtractMostRelevantBasicCommand = nameof(ExtractMostRelevantBasicCommand);
@@ -61,22 +58,20 @@ Remove any introduction, ending or explanation from the response, show me only t
     public static readonly PromptTemplateConfig ExtractMostRelevantBasicCommandPromptTemplateConfig = new()
     {
         Description = "Extract most relevant basic motor command.",
-        ModelSettings =
-        [
-            new OpenAIRequestSettings
+        ExecutionSettings = [
+            new OpenAIPromptExecutionSettings
             {
                 MaxTokens = 500,
                 Temperature = 0.0
             }
         ],
-        Input = new ()
+        InputVariables =
         {
-            Parameters =
-            [
-                new() { Name = "input", Description = "Action to be performed." },
-                new() { Name = "commands", Description = "The commands to chose from." },
-            ]
-        }
+            new() { Name = "input", Description = "Action to be performed." },
+            new() { Name = "commands", Description = "The commands to chose from." },
+        },
+        Name = ExtractMostRelevantBasicCommand,
+        Template = ExtractMostRelevantBasicCommandPromptTemplate
     };
 
     public const string ExecuteBasicCommand = nameof(ExecuteBasicCommand);
@@ -91,21 +86,19 @@ Stop action is returning: {{ MotorPlugin.Stop $input }}
     public static readonly PromptTemplateConfig ExecuteBasicCommandPromptTemplateConfig = new()
     {
         Description = "Execute basic motor command.",
-        ModelSettings =
-        [
-            new OpenAIRequestSettings
+        ExecutionSettings = [
+            new OpenAIPromptExecutionSettings
             {
                 MaxTokens = 500,
                 Temperature = 0.0
             }
         ],
-        Input = new()
+        InputVariables =
         {
-            Parameters =
-            [
-                new() { Name = "input", Description = "Action to be performed." },
-            ]
-        }
+            new() { Name = "input", Description = "Action to be performed." },
+        },
+        Name = ExecuteBasicCommand,
+        Template = ExecuteBasicCommandPromptTemplate
     };
 
     public static string ToArrow(this string function)
@@ -126,47 +119,5 @@ Stop action is returning: {{ MotorPlugin.Stop $input }}
         };
 
         return x;
-    }
-
-    public static async Task<Plan> CreateSequentialPlan(this IKernel kernel, string ask, ILogger logger)
-    {
-        // Create sequential plan
-
-        var config = new SequentialPlannerConfig();
-        config.ExcludedFunctions.Add(ExtractBasicCommands);             // we don't want to allow this semantic function in the plan!
-        config.ExcludedFunctions.Add(ExtractMostRelevantBasicCommand);  // we don't want to allow this semantic function in the plan!
-        var planner = new SequentialPlanner(kernel, config);
-
-        var plan = await planner.CreatePlanAsync(ask);
-
-        // show steps as arrows (function names converted to arrows)
-        var planStepsArrows = plan.Steps.Any()
-            ? string.Join(" ", plan.Steps.Select(s => s.Name.ToArrow()))
-            : "No steps!";
-
-        logger.LogInformation("  PLAN STEPS: {arrows}", planStepsArrows);
-
-        return plan;
-    }
-
-    public static async Task<Plan> CreateActionPlan(this IKernel kernel, string ask, ILogger logger)
-    {
-        // Create action plan
-
-        var config = new ActionPlannerConfig();
-        config.ExcludedFunctions.Add(ExtractBasicCommands);             // we don't want to allow this semantic function in the plan!
-        config.ExcludedFunctions.Add(ExtractMostRelevantBasicCommand);  // we don't want to allow this semantic function in the plan!
-        var planner = new ActionPlanner(kernel, config);
-
-        var plan = await planner.CreatePlanAsync(ask);
-
-        // show steps as arrows (function names converted to arrows)
-        var planStepsArrows = plan.Steps.Any()
-            ? string.Join(" ", plan.Steps.Select(s => s.Name.ToArrow()))
-            : "No steps!";
-
-        logger.LogInformation("  PLAN STEP: {arrows}", planStepsArrows);
-
-        return plan;
     }
 }

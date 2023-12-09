@@ -1,47 +1,51 @@
 ﻿using Commands;
-using Microsoft.Extensions.Logging;
+using HandlebarsDotNet;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Diagnostics;
-using Microsoft.SemanticKernel.Orchestration;
-using Microsoft.SemanticKernel.Planners;
-using Microsoft.SemanticKernel.Planning;
+using Microsoft.SemanticKernel.Planning.Handlebars;
 using Plugins;
 using Serilog;
 
-var loggerFactory = new LoggerFactory()
-    .AddSerilog(new LoggerConfiguration()
-        //.MinimumLevel.Debug()
-        .MinimumLevel.Information()
-        //.MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Debug)
-        .MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Warning)
-        .WriteTo.Console()
-        .CreateLogger()
-    );
+Log.Logger = new LoggerConfiguration()
+    //.MinimumLevel.Debug()
+    .MinimumLevel.Information()
+    //.MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Debug)
+    .MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Warning)
+    .WriteTo.Console()
+    .CreateLogger();
 
-var kernel = new KernelBuilder()
-    .WithCompletionService()
-    .WithLoggerFactory(loggerFactory)
-    .Build();
+var builder = new KernelBuilder();
 
-var logger = kernel.LoggerFactory.CreateLogger(CommandExtensions.MotorPlugin);
+builder.Services.AddLogging(c => c.AddSerilog(Log.Logger));
 
-var motorPlugin = new MotorPlugin(logger);
+builder.Services.AddAzureOpenAIChatCompletion(
+    deploymentName: Env.Var("AzureOpenAI:ChatCompletionDeploymentName")!,
+    modelId: Env.Var("AzureOpenAI:TextCompletionModelId")!,
+    endpoint: Env.Var("AzureOpenAI:Endpoint")!,
+    serviceId: "AzureOpenAIChat",
+    apiKey: Env.Var("AzureOpenAI:ApiKey")!);
+
+var motorPlugin = new MotorPlugin();
+builder.Plugins.AddFromObject(motorPlugin, nameof(Plugins.MotorPlugin));
+builder.Plugins.AddFromPromptDirectory(Path.Combine(Directory.GetCurrentDirectory(), CommandExtensions.PluginsFolder, CommandExtensions.CommandsPlugin), CommandExtensions.CommandsPlugin);
+
+var kernel = builder.Build();
+
 
 // 1. LOAD native and semantic functions from MotorPlugin
 
 // CREATE semantic function inline (instead of importing it from MotorPlugin)
-var extractBasicCommandsSemanticFunction = kernel.CreateSemanticFunction(CommandExtensions.ExtractBasicCommandsPromptTemplate, CommandExtensions.ExtractBasicCommandsPromptTemplateConfig, CommandExtensions.ExtractBasicCommands, CommandExtensions.MotorPlugin);
-var extractMostRelevantBasicCommandSemanticFunction = kernel.CreateSemanticFunction(CommandExtensions.ExtractMostRelevantBasicCommandPromptTemplate, CommandExtensions.ExtractMostRelevantBasicCommandPromptTemplateConfig, CommandExtensions.ExtractMostRelevantBasicCommand, CommandExtensions.MotorPlugin);
-var executeBasicCommandSemanticFunction = kernel.CreateSemanticFunction(CommandExtensions.ExecuteBasicCommandPromptTemplate, CommandExtensions.ExecuteBasicCommandPromptTemplateConfig, CommandExtensions.ExecuteBasicCommand, CommandExtensions.MotorPlugin);
+////var extractBasicCommandsSemanticFunction = kernel.CreateFunctionFromPrompt(new KernelPromptTemplate(CommandExtensions.ExtractBasicCommandsPromptTemplateConfig), CommandExtensions.ExtractBasicCommandsPromptTemplateConfig, CommandExtensions.ExtractBasicCommands);
+////var extractMostRelevantBasicCommandSemanticFunction = kernel.CreateFunctionFromPrompt(new KernelPromptTemplate(CommandExtensions.ExtractMostRelevantBasicCommandPromptTemplateConfig), CommandExtensions.ExtractMostRelevantBasicCommandPromptTemplateConfig, CommandExtensions.ExtractMostRelevantBasicCommand);
+////var executeBasicCommandSemanticFunction = kernel.CreateFunctionFromPrompt(new KernelPromptTemplate(CommandExtensions.ExecuteBasicCommandPromptTemplateConfig), CommandExtensions.ExecuteBasicCommandPromptTemplateConfig, CommandExtensions.ExecuteBasicCommand);
 
 // IMPORT semantic functions from MotorPlugin
-////var semanticMotorPluginFunctions = kernel.ImportSemanticFunctionsFromDirectory(Path.Combine(Directory.GetCurrentDirectory(), CommandExtensions.PluginsFolder), CommandExtensions.MotorPlugin);
-////var extractBasicCommandsSemanticFunction = semanticMotorPluginFunctions[CommandExtensions.ExtractBasicCommands];
-////var extractMostRelevantBasicCommandSemanticFunction = semanticMotorPluginFunctions[CommandExtensions.ExtractMostRelevantBasicCommand];
-////var executeBasicCommandSemanticFunction = semanticMotorPluginFunctions[CommandExtensions.ExecuteBasicCommand];
+////var semanticMotorPluginFunctions = kernel.ImportPluginFromPromptDirectory(Path.Combine(Directory.GetCurrentDirectory(), CommandExtensions.PluginsFolder), CommandExtensions.CommandsPlugin);
+var extractBasicCommandsSemanticFunction = kernel.Plugins[CommandExtensions.CommandsPlugin][CommandExtensions.ExtractBasicCommands];
+var extractMostRelevantBasicCommandSemanticFunction = kernel.Plugins[CommandExtensions.CommandsPlugin][CommandExtensions.ExtractMostRelevantBasicCommand];
+var executeBasicCommandSemanticFunction = kernel.Plugins[CommandExtensions.CommandsPlugin][CommandExtensions.ExecuteBasicCommand];
 
-// IMPORT native functions from MotorPlugin
-var motorPluginFunctions = kernel.ImportFunctions(new Plugins.MotorPlugin(logger), CommandExtensions.MotorPlugin);
+////var motorPluginFunctions = kernel.ImportPluginFromType<Plugins.MotorPlugin>();
 
 
 var asks = new List<string>
@@ -64,107 +68,101 @@ var asks = new List<string>
 };
 
 // Create prompt renderers
-////var promptRenderer = new BasicPromptTemplateFactory();
-////var extractBasicCommandsRenderedPromptTemplate = promptRenderer.Create(CommandExtensions.ExtractBasicCommandsPromptTemplate, CommandExtensions.ExtractBasicCommandsPromptTemplateConfig);
-////var extractMostRelevantBasicCommandRenderedPromptTemplate = promptRenderer.Create(CommandExtensions.ExtractMostRelevantBasicCommandPromptTemplate, CommandExtensions.ExtractMostRelevantBasicCommandPromptTemplateConfig);
+var promptRenderer = new KernelPromptTemplateFactory();
+var extractBasicCommandsRenderedPromptTemplate = promptRenderer.Create(CommandExtensions.ExtractBasicCommandsPromptTemplateConfig);
+var extractMostRelevantBasicCommandRenderedPromptTemplate = promptRenderer.Create(CommandExtensions.ExtractMostRelevantBasicCommandPromptTemplateConfig);
 
 
 // 2. PREPARE CONTEXT VARIABLES
 
-var variables = new ContextVariables();
-variables.Set("commands", CommandExtensions.BasicCommands);
+var variables = new KernelArguments("Today is: ")
+{
+    ["commands"] = CommandExtensions.BasicCommands
+};
 
 foreach (var ask in asks)
 {
-    logger.LogInformation("----------------------------------------------------------------------------------------------------");
-    logger.LogInformation("ASK: {ask}", ask);
+    Log.Information("----------------------------------------------------------------------------------------------------");
+    Log.Information("ASK: {ask}", ask);
 
-    variables.Update(ask);
+    variables["input"] = ask;
 
     // Rendered prompts
-    ////var extractBasicCommandsRenderedPrompt = await extractBasicCommandsRenderedPromptTemplate.RenderAsync(kernel.CreateNewContext(variables));
-    ////logger.LogDebug("RENDERED BASIC COMMANDS PROMPT: {renderedPrompt}", extractBasicCommandsRenderedPrompt);
-    ////var extractMostRelevantBasicCommandRenderedPrompt = await extractMostRelevantBasicCommandRenderedPromptTemplate.RenderAsync(kernel.CreateNewContext(variables));
-    ////logger.LogDebug("RENDERED MOST RELEVANT BASIC COMMAND PROMPT: {renderedPrompt}", extractMostRelevantBasicCommandRenderedPrompt);
+    var extractBasicCommandsRenderedPrompt = await extractBasicCommandsRenderedPromptTemplate.RenderAsync(kernel, variables);
+    Log.Debug("RENDERED BASIC COMMANDS PROMPT: {renderedPrompt}", extractBasicCommandsRenderedPrompt);
+    var extractMostRelevantBasicCommandRenderedPrompt = await extractMostRelevantBasicCommandRenderedPromptTemplate.RenderAsync(kernel, variables);
+    Log.Debug("RENDERED MOST RELEVANT BASIC COMMAND PROMPT: {renderedPrompt}", extractMostRelevantBasicCommandRenderedPrompt);
 
     try
     {
         #region Native Function.
 
-        ////var result = await kernel.RunAsync(motorPluginFunctions[nameof(motorPlugin.Backward)], variables);
+        //FunctionResult? result = kernel.Plugins[nameof(MotorPlugin)].TryGetFunction("Forward", out var func)
+        //    ? (await kernel.InvokeAsync(func, variables))
+        //    : default;
+        //Log.Debug("  RESULT: {result}", result);
 
         #endregion
 
 
         #region Semantic Function calling Native Function.
 
-        ////var result = await kernel.RunAsync(executeBasicCommandSemanticFunction, variables);
-
-        #endregion
-
-
-        // 3. CREATE AND EXECUTE PLANS
-
-        #region Action Plan => One step.
-
-        ////var plan = await kernel.CreateActionPlan(ask, logger);
-        ////var result = await kernel.RunAsync(variables, plan);
+        ////var result = await kernel.InvokeAsync(executeBasicCommandSemanticFunction, variables);
+        ////Log.Debug("  RESULT: {result}", result.GetValue<string>());
 
         #endregion
 
 
         #region Sequential Plan => Multiple steps.
 
-        ////var plan = await kernel.CreateSequentialPlan(ask, logger);
-        ////var result = await kernel.RunAsync(variables, plan);
+        ////#pragma warning disable SKEXP0060 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+        ////        var handlebarsPlannerConfig = new HandlebarsPlannerConfig()
+        ////        {
+        ////            // Change this if you want to test with loops regardless of model selection.
+        ////            AllowLoops = true,
+        ////        };
+        ////        handlebarsPlannerConfig.ExcludedPlugins.Add(CommandExtensions.CommandsPlugin);
+        ////        var planner = new HandlebarsPlanner(handlebarsPlannerConfig);
 
-        #endregion
+        ////        var plan = await planner.CreatePlanAsync(kernel, ask!);
+        ////        var result = plan.Invoke(kernel, variables);
+        ////        Log.Debug("  RESULT: {result}", result.Trim());
 
-
-        #region Action Plan ('ask' is converted to most relevant basic command) => One step.
-
-        ////var refinedAskMostRelevantResult = await kernel.RunAsync(extractMostRelevantBasicCommandSemanticFunction, variables);
-        ////var refinedAskMostRelevant = refinedAskMostRelevantResult.FunctionResults.First().GetValue<string>();
-        ////logger.LogInformation("REFINED ASK (most relevant): {ask}", refinedAskMostRelevant);
-        ////var plan = await kernel.CreateActionPlan(refinedAskMostRelevant!, logger);
-        ////var result = await kernel.RunAsync(variables, plan);
-
-        #endregion
-
-
-        #region More Action Plans ('ask' is converted to list of basic command) => Multiple steps.
-
-        ////var refinedAskListResult = await kernel.RunAsync(extractBasicCommandsSemanticFunction, variables);
-        ////var refinedAskList = refinedAskListResult.FunctionResults.First().GetValue<string>();
-        ////logger.LogInformation("REFINED ASK (list): {ask}", refinedAskList);
-
-        ////var plans = new List<ISKFunction>();
-        ////foreach (var refinedAsk in refinedAskList!.Split(','))
-        ////{
-        ////    var plan = await kernel.CreateActionPlan(refinedAsk, logger);
-        ////    plans.Add(plan);
-        ////}
-        ////var result = await kernel.RunAsync(variables, plans.ToArray());
+        ////#pragma warning restore SKEXP0060 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
         #endregion
 
 
         #region Sequential Plan ('ask' is converted to list of basic command) => Multiple steps.
 
-        var refinedAskListResult = await kernel.RunAsync(extractBasicCommandsSemanticFunction, variables);
-        var refinedAskList = refinedAskListResult.FunctionResults.First().GetValue<string>();
-        logger.LogInformation("REFINED ASK (list): {ask}", refinedAskList);
-        var plan = await kernel.CreateSequentialPlan(refinedAskList!, logger);
-        var result = await kernel.RunAsync(variables, plan);
+        var refinedAskListResult = await kernel.InvokeAsync(extractBasicCommandsSemanticFunction, variables);
+        var refinedAskList = refinedAskListResult.GetValue<string>();
+        Log.Information("REFINED ASK (list): {ask}", refinedAskList);
+
+#pragma warning disable SKEXP0060 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+        var handlebarsPlannerConfig = new HandlebarsPlannerConfig()
+        {
+            // Change this if you want to test with loops regardless of model selection.
+            AllowLoops = true,
+        };
+        handlebarsPlannerConfig.ExcludedPlugins.Add(CommandExtensions.CommandsPlugin);
+        var planner = new HandlebarsPlanner(handlebarsPlannerConfig);
+        var plan = await planner.CreatePlanAsync(kernel, refinedAskList!);
+        var result = plan.Invoke(kernel, variables);
+        Log.Debug("  RESULT: {result}", result.Trim());
+
+#pragma warning restore SKEXP0060 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
         #endregion
-
-
-        logger.LogDebug("  RESULT: {result}", result.FunctionResults.First().GetValue<string>());
     }
-    catch (SKException ex)
+    catch (HandlebarsRuntimeException hex) 
     {
-        logger.LogError("FAILED with exception: {message}", ex.Message);
+        Log.Error("HANDLEBAR PLAN FAILED with exception: {message}", hex.Message);
+        continue;
+    }
+    catch (KernelException ex)
+    {
+        Log.Error("FAILED with exception: {message}", ex.Message);
         continue;
     }
 }
