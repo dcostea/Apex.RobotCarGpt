@@ -1,6 +1,5 @@
 ﻿using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Connectors.AI.OpenAI;
-using Microsoft.SemanticKernel.Planning.Handlebars;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 namespace Commands;
 
@@ -27,13 +26,10 @@ Give me the list as a comma separated list. Remove any introduction, ending or e
     public static readonly PromptTemplateConfig ExtractBasicCommandsPromptTemplateConfig = new()
     {
         Description = "Extract basic motor commands.",
-        ExecutionSettings = [
-            new OpenAIPromptExecutionSettings
-            {
-                MaxTokens = 500,
-                Temperature = 0.0
-            }
-        ],
+        ExecutionSettings =
+        {
+            { "default", new OpenAIPromptExecutionSettings { MaxTokens = 500, Temperature = 0.0 } }
+        },
         InputVariables =
         [
             new() { Name = "input", Description = "Action to be performed." },
@@ -58,13 +54,10 @@ Remove any introduction, ending or explanation from the response, show me only t
     public static readonly PromptTemplateConfig ExtractMostRelevantBasicCommandPromptTemplateConfig = new()
     {
         Description = "Extract most relevant basic motor command.",
-        ExecutionSettings = [
-            new OpenAIPromptExecutionSettings
-            {
-                MaxTokens = 500,
-                Temperature = 0.0
-            }
-        ],
+        ExecutionSettings =        
+        {
+            { "default", new OpenAIPromptExecutionSettings { MaxTokens = 500, Temperature = 0.0 } }
+        },
         InputVariables =
         {
             new() { Name = "input", Description = "Action to be performed." },
@@ -86,13 +79,10 @@ Stop action is returning: {{ MotorPlugin.Stop $input }}
     public static readonly PromptTemplateConfig ExecuteBasicCommandPromptTemplateConfig = new()
     {
         Description = "Execute basic motor command.",
-        ExecutionSettings = [
-            new OpenAIPromptExecutionSettings
-            {
-                MaxTokens = 500,
-                Temperature = 0.0
-            }
-        ],
+        ExecutionSettings =
+        {
+            { "default", new OpenAIPromptExecutionSettings { MaxTokens = 500, Temperature = 0.0 } }
+        },
         InputVariables =
         {
             new() { Name = "input", Description = "Action to be performed." },

@@ -7,14 +7,14 @@ using Plugins;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
-    //.MinimumLevel.Debug()
-    .MinimumLevel.Information()
+    .MinimumLevel.Debug()
+    //.MinimumLevel.Information()
     //.MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Debug)
     .MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Warning)
     .WriteTo.Console()
     .CreateLogger();
 
-var builder = new KernelBuilder();
+var builder = Kernel.CreateBuilder();
 
 builder.Services.AddLogging(c => c.AddSerilog(Log.Logger));
 
@@ -22,7 +22,7 @@ builder.Services.AddAzureOpenAIChatCompletion(
     deploymentName: Env.Var("AzureOpenAI:ChatCompletionDeploymentName")!,
     modelId: Env.Var("AzureOpenAI:TextCompletionModelId")!,
     endpoint: Env.Var("AzureOpenAI:Endpoint")!,
-    serviceId: "AzureOpenAIChat",
+    serviceId: Env.Var("AzureOpenAI:AzureOpenAIChat")!,
     apiKey: Env.Var("AzureOpenAI:ApiKey")!);
 
 var motorPlugin = new MotorPlugin();
@@ -75,7 +75,7 @@ var extractMostRelevantBasicCommandRenderedPromptTemplate = promptRenderer.Creat
 
 // 2. PREPARE CONTEXT VARIABLES
 
-var variables = new KernelArguments("Today is: ")
+var variables = new KernelArguments()
 {
     ["commands"] = CommandExtensions.BasicCommands
 };
@@ -140,15 +140,16 @@ foreach (var ask in asks)
         Log.Information("REFINED ASK (list): {ask}", refinedAskList);
 
 #pragma warning disable SKEXP0060 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-        var handlebarsPlannerConfig = new HandlebarsPlannerConfig()
+        var handlebarsPlannerOptions = new HandlebarsPlannerOptions ()
         {
             // Change this if you want to test with loops regardless of model selection.
             AllowLoops = true,
         };
-        handlebarsPlannerConfig.ExcludedPlugins.Add(CommandExtensions.CommandsPlugin);
-        var planner = new HandlebarsPlanner(handlebarsPlannerConfig);
+        handlebarsPlannerOptions.ExcludedPlugins.Add(CommandExtensions.CommandsPlugin);
+        var planner = new HandlebarsPlanner(handlebarsPlannerOptions);
         var plan = await planner.CreatePlanAsync(kernel, refinedAskList!);
-        var result = plan.Invoke(kernel, variables);
+        //Log.Debug("  PLAN PROMPT: {prompt}", plan.Prompt);
+        var result = await plan.InvokeAsync(kernel, variables);
         Log.Debug("  RESULT: {result}", result.Trim());
 
 #pragma warning restore SKEXP0060 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
