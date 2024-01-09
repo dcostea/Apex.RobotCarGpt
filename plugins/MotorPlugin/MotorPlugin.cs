@@ -8,47 +8,46 @@ namespace Plugins;
 public class MotorPlugin
 {
     [KernelFunction, Description("Moves the car backward.")]
-    public string Backward([Description("The current input of the car.")] string input)
+    public void Backward()
     {
+        //Log.Information("{arrow} ({input} => backward)", "Backward".ToArrow(), input);
         Log.Information("Backward".ToArrow());
-        // TODO call car motor API, backward endpoint
 
-        return "backward";
+        // TODO call car motor API, backward endpoint
     }
 
     [KernelFunction, Description("Moves the car forward.")]
-    public string Forward([Description("The current input of the car.")] string input)
+    public void Forward()
     {
+        //Log.Information("{arrow} ({input} => forward)", "Forward".ToArrow(), input);
         Log.Information("Forward".ToArrow());
-        // TODO call car motor API, forward endpoint
 
-        return "forward";
+        // TODO call car motor API, forward endpoint
     }
 
     [KernelFunction, Description("Stops the car.")]
-    public string Stop([Description("The current input of the car.")] string input)
+    public void Stop()
     {
+        //Log.Information("{arrow} ({input} => stop)", "Stop".ToArrow(), input);
         Log.Information("Stop".ToArrow());
-        // TODO call car motor API, stop endpoint
 
-        return "stopped";
+        // TODO call car motor API, stop endpoint
     }
 
     [KernelFunction, Description("Turns the car anticlockwise.")]
-    public string TurnLeft([Description("The current input of the car.")] string input)
+    public void TurnLeft()
     {
+        //Log.Information("{arrow} ({input} => turn left)", "TurnLeft".ToArrow(), input);
         Log.Information("TurnLeft".ToArrow());
-        // TODO call car motor API, turn left endpoint
 
-        return "turned left";
+        // TODO call car motor API, turn left endpoint
     }
 
     [KernelFunction, Description("Turns the car clockwise.")]
-    public string TurnRight([Description("The current input of the car.")] string input)
+    public void TurnRight()
     {
+        //Log.Information("{arrow} ({input} => turn right)", "TurnRight".ToArrow(), input);
         Log.Information("TurnRight".ToArrow());
         // TODO call car motor API, turn right endpoint
-
-        return "turned right";
     }
 }
