@@ -115,9 +115,9 @@ foreach (var ask in asks)
 
         // 3b. USING PLANNERS
         ////await PlannersAndFunctions.HandlebarsPlannerAsync(kernel, variables, ask);
-        //await PlannersAndFunctions.HandlebarsPlannerWithRefinedAskAsync(kernel, variables);
+        await PlannersAndFunctions.HandlebarsPlannerWithRefinedAskAsync(kernel, variables);
         //await PlannersAndFunctions.HandlebarsPlannerWithAugmentedAskAsync(kernel, variables, ask);
-        await PlannersAndFunctions.FunctionCallingPlannerWithRefinedAskAsync(kernel, variables);
+        //await PlannersAndFunctions.FunctionCallingPlannerWithRefinedAskAsync(kernel, variables);
         //await PlannersAndFunctions.FunctionCallingPlannerWithAugmentedAskAsync(kernel, variables, ask);
     }
     catch (HandlebarsCompilerException ex)
