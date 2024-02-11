@@ -1,28 +1,30 @@
-﻿using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
+﻿using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Microsoft.SemanticKernel;
 
-namespace Commands;
+namespace Apex.RobotCarGpt.Commands;
 
 public static class CommandExtensions
 {
-    public const string PluginsFolder = "plugins";
+    public const string PluginsFolder = "Plugins";
 
     public const string CommandsPlugin = nameof(CommandsPlugin);
 
     public const string BasicCommands = "go forward, go backward, turn left, turn right, and stop";
 
     public const string ExtractBasicCommands = nameof(ExtractBasicCommands);
+
     public const string ExtractBasicCommandsPromptTemplate = """
-You are a robot car capable of performing only the following allowed basic commands: {{ $commands }}.
-Initial state of the car is stopped. The last state of the car is stopped.
-You need to:
-[START ACTION TO BE PERFORMED]
-{{ $input }}
-[END ACTION TO BE PERFORMED]
-Extract a list of basic commands from the action to be performed to fulfill the goal.
-Restrict the extracted list to the allowed basic commands enumerated above.
-Give me the list as a comma separated list. Remove any introduction, ending or explanation from the response, show me only the list of allowed commands.
-""";
+    You are a robot car capable of performing only the following allowed basic commands: {{ $commands }}.
+    Initial state of the car is stopped. The last state of the car is stopped.
+    You need to:
+    [START ACTION TO BE PERFORMED]
+    {{ $input }}
+    [END ACTION TO BE PERFORMED]
+    Extract a list of basic commands from the action to be performed to fulfill the goal.
+    Restrict the extracted list to the allowed basic commands enumerated above.
+    Give me the list as a comma separated list. Remove any introduction, ending or explanation from the response, show me only the list of allowed commands.
+    """;
+
     public static readonly PromptTemplateConfig ExtractBasicCommandsPromptTemplateConfig = new()
     {
         Description = "Extract basic motor commands.",
@@ -40,21 +42,23 @@ Give me the list as a comma separated list. Remove any introduction, ending or e
     };
 
     public const string ExtractMostRelevantBasicCommand = nameof(ExtractMostRelevantBasicCommand);
+
     public const string ExtractMostRelevantBasicCommandPromptTemplate = """
-You are a robot car capable of performing only the following allowed basic commands: {{ $commands }}.
-Initial state of the car is stopped. The last state of the car is stopped.
-You need to:
-[START ACTION TO BE PERFORMED]
-{{ $input }}
-[END ACTION TO BE PERFORMED]
-Extract the most relevant basic command, one command only, for the action to be performed to fulfill the goal.
-Restrict the extracted basic command to one of the allowed basic commands enumerated above.
-Remove any introduction, ending or explanation from the response, show me only the extracted basic command.
-""";
+    You are a robot car capable of performing only the following allowed basic commands: {{ $commands }}.
+    Initial state of the car is stopped. The last state of the car is stopped.
+    You need to:
+    [START ACTION TO BE PERFORMED]
+    {{ $input }}
+    [END ACTION TO BE PERFORMED]
+    Extract the most relevant basic command, one command only, for the action to be performed to fulfill the goal.
+    Restrict the extracted basic command to one of the allowed basic commands enumerated above.
+    Remove any introduction, ending or explanation from the response, show me only the extracted basic command.
+    """;
+
     public static readonly PromptTemplateConfig ExtractMostRelevantBasicCommandPromptTemplateConfig = new()
     {
         Description = "Extract most relevant basic motor command.",
-        ExecutionSettings =        
+        ExecutionSettings =
         {
             { "default", new OpenAIPromptExecutionSettings { MaxTokens = 500, Temperature = 0.0 } }
         },
@@ -68,14 +72,16 @@ Remove any introduction, ending or explanation from the response, show me only t
     };
 
     public const string ExecuteBasicCommand = nameof(ExecuteBasicCommand);
+
     public const string ExecuteBasicCommandPromptTemplate = """
-Echo the next text back to me:
-Forward action is returning: {{ MotorPlugin.Forward $input }}
-Backward action is returning: {{ MotorPlugin.Backward $input }}
-Turn Left action is returning: {{ MotorPlugin.TurnLeft $input }}
-Turn Right action is returning: {{ MotorPlugin.TurnRight $input }}
-Stop action is returning: {{ MotorPlugin.Stop $input }}
-""";
+    Echo the next text back to me:
+    Forward action is returning: {{ MotorPlugin.Forward $input }}
+    Backward action is returning: {{ MotorPlugin.Backward $input }}
+    Turn Left action is returning: {{ MotorPlugin.TurnLeft $input }}
+    Turn Right action is returning: {{ MotorPlugin.TurnRight $input }}
+    Stop action is returning: {{ MotorPlugin.Stop $input }}
+    """;
+
     public static readonly PromptTemplateConfig ExecuteBasicCommandPromptTemplateConfig = new()
     {
         Description = "Execute basic motor command.",

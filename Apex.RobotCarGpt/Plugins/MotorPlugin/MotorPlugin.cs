@@ -1,9 +1,9 @@
-﻿using System.ComponentModel;
-using Commands;
+﻿using Apex.RobotCarGpt.Commands;
 using Microsoft.SemanticKernel;
 using Serilog;
+using System.ComponentModel;
 
-namespace Plugins;
+namespace Apex.RobotCarGpt.Plugins.MotorPlugin;
 
 public class MotorPlugin
 {
@@ -51,3 +51,4 @@ public class MotorPlugin
         // TODO call car motor API, turn right endpoint
     }
 }
+

@@ -1,6 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+﻿namespace Apex.RobotCarGpt;
 
-using Microsoft.Extensions.Configuration;
+// Copyright (c) Microsoft. All rights reserved.
 
 #pragma warning disable CA1812 // instantiated by AddUserSecrets
 internal sealed class Env
@@ -29,3 +29,4 @@ internal sealed class Env
         return value;
     }
 }
+
