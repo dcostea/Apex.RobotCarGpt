@@ -351,13 +351,13 @@ public class PromptsController(Kernel kernel) : ControllerBase
                     variables["input"] = augmentedAsk;
                 }
 
-                var functionCallingStepwisePlannerConfig = new FunctionCallingStepwisePlannerConfig
+                var functionCallingStepwisePlannerOptions = new FunctionCallingStepwisePlannerOptions
                 {
                     MaxIterations = 30,
                     ExecutionSettings = new OpenAIPromptExecutionSettings { Seed = 42L }
                 };
-                functionCallingStepwisePlannerConfig.ExcludedPlugins.Add(CommandExtensions.CommandsPlugin);
-                var planner = new FunctionCallingStepwisePlanner(functionCallingStepwisePlannerConfig);
+                functionCallingStepwisePlannerOptions.ExcludedPlugins.Add(CommandExtensions.CommandsPlugin);
+                var planner = new FunctionCallingStepwisePlanner(functionCallingStepwisePlannerOptions);
                 var plannerResult = await planner.ExecuteAsync(kernel, variables["input"]!.ToString()!);
 
                 //foreach (var item in result.ChatHistory!)
