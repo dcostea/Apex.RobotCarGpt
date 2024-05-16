@@ -1,4 +1,5 @@
-﻿using Apex.RobotCarGpt.Commands;
+﻿using Apex.RobotCarGpt.Helpers;
+using Azure.AI.OpenAI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -6,7 +7,6 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Planning;
 using Microsoft.SemanticKernel.Planning.Handlebars;
 using Serilog;
-using System.Diagnostics;
 using System.Text.Json;
 
 namespace Apex.RobotCarGpt.Controllers;
@@ -15,371 +15,310 @@ namespace Apex.RobotCarGpt.Controllers;
 [Route("[controller]")]
 public class PromptsController(Kernel kernel) : ControllerBase
 {
-    private readonly List<string> asks = [
-        //"Go like forward forward turn right backward stop.",
-        //"Go 10 steps where each step is a randomly selected step like: move forward, backward, and turning left or right.",
-        "You have a tree in front of the car. Avoid it.",
-        //"Move forward, turn left, forward and return at the same place where it started.",
-        //"Do a full circle by turning left followed by a full circle by turning right.",
-        //"Run away.",
-        //"Do an evasive maneuver.",
-        //"Do a pretty complex evasive maneuver with a least 15 steps. Stop at every 5 steps.",
-        //"Do the moonwalk dancing.",
-        //"Move like a jellyfish.",
-        //"Dance like a ballerina.",
-        //"Go on square path.",
-        //"Go on a full complete circle.",
-        //"Go on a semi-circle.",
-        //"Do a full 360 degrees rotation.",
+    private readonly List<string> _actions = [
+        "You have a tree in front of the car. Avoid it and then resume the initial direction.",
+        "Do the moonwalk dancing.",
+        "Do a full 360 degrees rotation using 90 degrees turns.",
     ];
+    private readonly string MotorHelperPlugin = nameof(MotorHelperPlugin);
+    private readonly string BreakdownComplexCommands = nameof(BreakdownComplexCommands);
+    private readonly string Plugins = nameof(Plugins);
 
-    [HttpGet("autoinvoked_function_calling")]
-    public async Task<IActionResult> GetAutoinvokedFunctionCalling(bool isRefinedAsk = true, bool isAugmented = false)
+    [HttpGet("/prompt/chaining")]
+    public async Task<IActionResult> GetPromptChaining()
     {
-        var result = string.Empty;
+        Console.WriteLine("\n===========================================================================");
+        Console.WriteLine("PROMPT CHAINING");
 
-        var sw = new Stopwatch();
+        kernel.ImportPluginFromType<Plugins.MotorCommandsPlugin.MotorCommandsPlugin>();
+        var motorHelperPlugin = kernel.CreatePluginFromPromptDirectory(Path.Combine(Directory.GetCurrentDirectory(), Plugins, MotorHelperPlugin), MotorHelperPlugin);
+        kernel.PrintAllPluginsFunctions();
 
-        Log.Information("===========================================================================");
-        Log.Information("AUTOINVOKED FUNCTION CALLING{isRefinedAsk}{isAugmentedAsk}", isRefinedAsk ? " WITH REFINED ASK" : "", isAugmented ? " WITH AUGMENTED ASK" : "");
-
-        var variables = new KernelArguments()
+        foreach (var action in _actions)
         {
-            ["commands"] = CommandExtensions.BasicCommands
-        };
+            Console.WriteLine("---------------------------------------------------------------------------");
+            Console.WriteLine($"COMPLEX ACTION: {action}");
 
-        foreach (var ask in asks)
-        {
-            sw.Restart();
-
-            Log.Information("---------------------------------------------------------------------------");
-            Log.Information("ASK: {ask}", ask);
-
-            variables["input"] = ask;
+            var chatHistory = new ChatHistory();
+            chatHistory.AddSystemMessage("You are a robot car able to perform basic motor commands.");
 
             try
             {
-                if (isRefinedAsk)
-                {
-                    var extractBasicCommandsPromptFunction = kernel.Plugins[CommandExtensions.CommandsPlugin][CommandExtensions.ExtractBasicCommands];
-                    var refinedAskListResult = await kernel.InvokeAsync(extractBasicCommandsPromptFunction, variables);
+                var refinedAction = action;
+                //var refinedAction = "advance a few steps, turn back and stop";
 
-                    var refinedAsk = refinedAskListResult.GetValue<string>();
-                    Log.Information("REFINED ASK (list of basic commands): {ask}", refinedAsk);
+                var breakdownComplexCommandsFunction = motorHelperPlugin["BreakdownComplexCommands"];
+                var refinedActionResult = await kernel.InvokeAsync(breakdownComplexCommandsFunction);
+                refinedAction = refinedActionResult.GetValue<string>();
+                Console.WriteLine($"REFINED ACTION: Call the next commands: {refinedAction}");
 
-                    variables["input"] = refinedAsk;
-                }
+                chatHistory.AddUserMessage($"Call the next commands: {refinedAction}");
 
-                if (isAugmented)
-                {
-                    //TODO review this
-                    var augmentedAsk = $"""
-                    You are a robot car capable of performing basic commands.
-                    Initial state of the car is stopped.
-                    The last state of the car is stopped.
-                    Action:
-                    [START ACTION]
-                    {ask}
-                    [END ACTION]
-                    Extract the list of basic commands from the action and show me the list. Execute the commands.
-                    """;
+                var x = await kernel.InvokePromptAsync(refinedAction!);
 
-                    variables["input"] = augmentedAsk;
-                }
+                var chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
+                var chatMessageContent = await chatCompletionService.GetChatMessageContentAsync(chatHistory, new OpenAIPromptExecutionSettings { }, kernel);
 
-                Log.Warning("AutoInvokeKernelFunctions HAS A LIMIT OF MAX 5 CALLS!");
-
-                var settings = new OpenAIPromptExecutionSettings
-                {
-                    ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
-                    Seed = 42L
-                };
-
-                var clonedKernel = kernel.Clone();
-                clonedKernel.Plugins.Remove(kernel.Plugins[CommandExtensions.CommandsPlugin]);
-                var streamingResult = clonedKernel.InvokePromptStreamingAsync(variables["input"]!.ToString()!, new KernelArguments(settings));
-                await foreach (var streamingResponse in streamingResult)
-                {
-                    result += streamingResponse;
-                }
-                Log.Debug("STREAMING RESULT: {result}", result);
+                var result = chatMessageContent.Content;
+                Console.WriteLine("RESULT: {content}", result);
             }
             catch (Exception ex)
             {
                 Log.Error("FAILED with exception: {message}", ex.Message);
                 continue;
             }
-            finally
-            {
-                sw.Stop();
-                Log.Debug("Total seconds per ask: {seconds}", sw.Elapsed.TotalSeconds);
-            }
         }
 
-        return Ok(result);
+        return Ok();
     }
 
-    [HttpGet("function_calling")]
-    public async Task<IActionResult> GetFunctionCalling(bool isRefinedAsk = true, bool isAugmented = false)
+    [HttpGet("/function_calling/autoinvoked")]
+    public async Task<IActionResult> GetFunctionCallingAutoinvoked()
     {
-        if (isRefinedAsk && isAugmented)
+        Console.WriteLine("\n===========================================================================");
+        Console.WriteLine("FUNCTION CALLING WITH AUTOINVOKE");
+
+        kernel.ImportPluginFromType<Plugins.MotorCommandsPlugin.MotorCommandsPlugin>();
+        kernel.ImportPluginFromPromptDirectory(Path.Combine(Directory.GetCurrentDirectory(), Plugins, MotorHelperPlugin), MotorHelperPlugin);
+        kernel.PrintAllPluginsFunctions();
+
+        foreach (var action in _actions)
         {
-            return BadRequest("We cannot use refined ask and augmented ask at the same time, choose only one.");
-        }
+            Console.WriteLine("---------------------------------------------------------------------------");
+            Console.WriteLine($"COMPLEX ACTION: {action}");
 
-        var result = string.Empty;
+            var chat = kernel.GetRequiredService<IChatCompletionService>();
 
-        var sw = new Stopwatch();
-
-        Log.Information("===========================================================================");
-        Log.Information("FUNCTION CALLING{isRefinedAsk}{isAugmentedAsk}", isRefinedAsk ? " WITH REFINED ASK" : "", isAugmented ? " WITH AUGMENTED ASK" : "");
-
-        var variables = new KernelArguments()
-        {
-            ["commands"] = CommandExtensions.BasicCommands
-        };
-
-        foreach (var ask in asks)
-        {
-            sw.Restart();
-
-            Log.Information("---------------------------------------------------------------------------");
-            Log.Information("ASK: {ask}", ask);
-
-            variables["input"] = ask;
+            var chatHistory = new ChatHistory();
+            chatHistory.AddSystemMessage("You are a robot car able to perform basic motor commands.");
+            chatHistory.AddUserMessage(action);
 
             try
             {
-                if (isRefinedAsk) 
-                {
-                    var extractBasicCommandsPromptFunction = kernel.Plugins[CommandExtensions.CommandsPlugin][CommandExtensions.ExtractBasicCommands];
-                    var refinedAskResult = await kernel.InvokeAsync(extractBasicCommandsPromptFunction, variables);
-                    var refinedAsk = refinedAskResult.GetValue<string>();
-                    Log.Information("REFINED ASK (list of basic commands): {ask}", refinedAsk);
+                Console.WriteLine("AutoInvokeKernelFunctions HAS A LIMIT OF MAX 5 CALLS!");
 
-                    variables["input"] = refinedAsk;
+                // In order to capture the autoinvoked tools we need to stream the responses
+
+                var streamingResult = chat.GetStreamingChatMessageContentsAsync(chatHistory, new OpenAIPromptExecutionSettings { ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions }, kernel);
+
+                await foreach (var result in streamingResult)
+                {
+                    var openaiMessageContent = result as OpenAIStreamingChatMessageContent;
+                    var toolCall = openaiMessageContent?.ToolCallUpdate as StreamingFunctionToolCallUpdate;
+
+                    if (openaiMessageContent!.Role == AuthorRole.Assistant)
+                    {
+                        if (toolCall is not null)
+                        {
+                            Console.Write($"\nTOOL: {toolCall.Name}");
+                        }
+                        else
+                        {
+                            Console.WriteLine();
+                        }
+
+                        continue;
+                    }
+
+                    if (openaiMessageContent?.FinishReason is not null)
+                    {
+                        Console.WriteLine($"\nFINISH REASON: {openaiMessageContent?.FinishReason}");
+                        continue;
+                    }
+
+                    Console.Write($"{openaiMessageContent?.Content}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("FAILED with exception: {message}", ex.Message);
+                continue;
+            }
+        }
+
+        return Ok();
+    }
+
+    [HttpGet("/function_calling")]
+    public async Task<IActionResult> GetFunctionCalling()
+    {
+        Console.WriteLine("\n===========================================================================");
+        Console.WriteLine("FUNCTION CALLING");
+
+        kernel.ImportPluginFromType<Plugins.MotorCommandsPlugin.MotorCommandsPlugin>();
+        kernel.ImportPluginFromPromptDirectory(Path.Combine(Directory.GetCurrentDirectory(), Plugins, MotorHelperPlugin), MotorHelperPlugin);
+        kernel.PrintAllPluginsFunctions();
+
+        foreach (var action in _actions)
+        {
+            Console.WriteLine("---------------------------------------------------------------------------");
+            Console.WriteLine($"COMPLEX ACTION: {action}");
+
+            var chat = kernel.GetRequiredService<IChatCompletionService>();
+
+            var chatHistory = new ChatHistory();
+            chatHistory.AddSystemMessage("You are a robot car able to perform basic motor commands.");
+            chatHistory.AddUserMessage(action);
+
+            while (true)
+            {
+                var result = await chat.GetChatMessageContentAsync(chatHistory, new OpenAIPromptExecutionSettings { ToolCallBehavior = ToolCallBehavior.EnableKernelFunctions }, kernel);
+
+                if (result.Content is not null)
+                {
+                    Console.WriteLine(result.Content);
                 }
 
-                if (isAugmented)
-                {
-                    var augmentedAsk = $"""
-                    You are a robot car capable of performing basic commands.
-                    Initial state of the car is stopped.
-                    The last state of the car is stopped.
-                    Action:
-                    [START ACTION]
-                    {ask}
-                    [END ACTION]
-                    Extract the list of basic commands from the action and execute the commands.
-                    """;
+                var toolCalls = (result as OpenAIChatMessageContent)!.ToolCalls.OfType<ChatCompletionsFunctionToolCall>();
 
-                    variables["input"] = augmentedAsk;
+                if (toolCalls.Any())
+                {
+                    chatHistory.Add(result);
+
+                    foreach (var toolCall in toolCalls)
+                    {
+                        string content;
+                        if (kernel.Plugins.TryGetFunctionAndArguments(toolCall, out KernelFunction? function, out KernelArguments? arguments))
+                        {
+                            Console.WriteLine($"\nTOOL: {toolCall.Name}");
+
+                            // invoke the function manually
+                            var response = await function!.InvokeAsync(kernel, arguments);
+                            content = JsonSerializer.Serialize(response.GetValue<string>());
+                        }
+                        else
+                        {
+                            // instruct the model to try again
+                            content = "Unable to find the function. Please try again!";
+                            Console.WriteLine(content);
+                        }
+
+                        chatHistory.Add(new ChatMessageContent(
+                            AuthorRole.Tool,
+                            content,
+                            metadata: new Dictionary<string, object?>(1) { { OpenAIChatMessageContent.ToolIdProperty, toolCall.Id } }));
+                    }
                 }
+                else
+                {
+                    // stop if no more tools found
+                    break;
+                }
+            }
+        }
+
+        return Ok();
+    }
+
+    [HttpGet("/planner/function_calling")]
+    public async Task<IActionResult> GetFunctionCallingStepwisePlanner(bool showChatHistory = false)
+    {
+        Console.WriteLine("\n===========================================================================");
+        Console.WriteLine("FUNCTION CALLING STEPWISE PLANNER");
+
+        kernel.ImportPluginFromType<Plugins.MotorCommandsPlugin.MotorCommandsPlugin>();
+        kernel.ImportPluginFromPromptDirectory(Path.Combine(Directory.GetCurrentDirectory(), Plugins, MotorHelperPlugin), MotorHelperPlugin);
+        kernel.PrintAllPluginsFunctions();
+
+        foreach (var action in _actions)
+        {
+            Console.WriteLine("---------------------------------------------------------------------------");
+            Console.WriteLine($"COMPLEX ACTION: {action}");
+
+            try
+            {
+                var planner = new FunctionCallingStepwisePlanner(new FunctionCallingStepwisePlannerOptions { MaxIterations = 10 });
 
                 var chatHistory = new ChatHistory();
-                chatHistory.AddMessage(AuthorRole.User, variables["input"]!.ToString()!);
+                chatHistory.AddSystemMessage("You are a robot car able to perform basic motor commands.");
+                //If you are asked to perform complex actions, break down the complex action into basic motor commands.
 
-                var settings = new OpenAIPromptExecutionSettings
+                var plannerResult = await planner.ExecuteAsync(kernel, action);
+
+                if (showChatHistory) 
                 {
-                    ToolCallBehavior = ToolCallBehavior.EnableKernelFunctions,
-                    Seed = 42L
-                };
+                    Console.WriteLine("\nCHAT HISTORY: ");
 
-                var clonedKernel = kernel.Clone();
-                clonedKernel.Plugins.Remove(kernel.Plugins[CommandExtensions.CommandsPlugin]);
+                    foreach (var chat in plannerResult.ChatHistory!)
+                    {
+                        var toolCalls = (chat as OpenAIChatMessageContent)?.ToolCalls.OfType<ChatCompletionsFunctionToolCall>();
 
-                var chatCompletionService = clonedKernel.GetRequiredService<IChatCompletionService>();
-                var chatMessageContent = await chatCompletionService.GetChatMessageContentAsync(chatHistory, settings, clonedKernel);
+                        if (chat.Role == AuthorRole.Assistant)
+                        {
+                            if (toolCalls is not null)
+                            {
+                                foreach (var toolCall in toolCalls)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Green;
+                                    Console.Write($"{chat.Role.Label} > ");
+                                    Console.ResetColor();
+                                    Console.WriteLine(toolCall.Name);
+                                }
+                            }
+                            continue;
+                        }
 
-                var functionCalls = ((OpenAIChatMessageContent)chatMessageContent).GetOpenAIFunctionToolCalls();
-                foreach (var functionCall in functionCalls)
-                {
-                    clonedKernel.Plugins.TryGetFunctionAndArguments(functionCall, out var pluginFunction, out var arguments);
-                    var functionResult = await clonedKernel.InvokeAsync(pluginFunction!, arguments!);
-                    var jsonResponse = functionResult.GetValue<object>();
-                    var json = JsonSerializer.Serialize(jsonResponse);
-                    chatHistory.AddMessage(AuthorRole.Tool, json);
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write($"{chat.Role.Label} > ");
+                        Console.ResetColor();
+                        Console.WriteLine(chat.Content);
+                    }
                 }
-                chatMessageContent = await chatCompletionService.GetChatMessageContentAsync(chatHistory, settings, clonedKernel);
-                result = chatMessageContent.Content;
-                Log.Debug("RESULT: {content}", result);
+
+                Console.WriteLine($"\nFINAL RESULT: {plannerResult.FinalAnswer}");
             }
             catch (Exception ex)
             {
                 Log.Error("FAILED with exception: {message}", ex.Message);
                 continue;
             }
-            finally
-            {
-                sw.Stop();
-                Log.Debug("Total seconds per ask: {seconds}", sw.Elapsed.TotalSeconds);
-            }
         }
 
-        return Ok(result);
+        return Ok();
     }
 
-    [HttpGet("handlebars_planner")]
-    public async Task<IActionResult> GetHandlebarsPlanner(bool isRefinedAsk = true, bool isAugmented = false)
+    [HttpGet("/planner/handlebars")]
+    public async Task<IActionResult> GetHandlebarsPlanner(bool showPlan = false)
     {
-        if (isRefinedAsk && isAugmented)
+        Console.WriteLine("\n===========================================================================");
+        Console.WriteLine("HANDLEBARS PLANNER");
+
+        kernel.ImportPluginFromType<Plugins.MotorCommandsPlugin.MotorCommandsPlugin>();
+        kernel.ImportPluginFromPromptDirectory(Path.Combine(Directory.GetCurrentDirectory(), Plugins, MotorHelperPlugin), MotorHelperPlugin);
+        kernel.PrintAllPluginsFunctions();
+
+        foreach (var action in _actions)
         {
-            return BadRequest("We cannot use refined ask and augmented ask at the same time, choose only one.");
-        }
-
-        var result = string.Empty;
-
-        var sw = new Stopwatch();
-
-        Log.Information("===========================================================================");
-        Log.Information("HANDLEBARS PLANNER{isRefinedAsk}{isAugmentedAsk}", isRefinedAsk ? " WITH REFINED ASK" : "", isAugmented ? " WITH AUGMENTED ASK" : "");
-
-        var variables = new KernelArguments()
-        {
-            ["commands"] = CommandExtensions.BasicCommands
-        };
-
-        foreach (var ask in asks)
-        {
-            sw.Restart();
-
-            Log.Information("---------------------------------------------------------------------------");
-            Log.Information("ASK: {ask}", ask);
-
-            variables["input"] = ask;
+            Console.WriteLine("---------------------------------------------------------------------------");
+            Console.WriteLine($"COMPLEX ACTION: {action}");
 
             try
             {
-                if (isRefinedAsk) 
-                {
-                    var extractBasicCommandsPromptFunction = kernel.Plugins[CommandExtensions.CommandsPlugin][CommandExtensions.ExtractBasicCommands];
-                    var refinedAskResult = await kernel.InvokeAsync(extractBasicCommandsPromptFunction, variables);
-                    var refinedAsk = refinedAskResult.GetValue<string>();
-                    Log.Information("REFINED ASK (list of basic commands): {ask}", refinedAsk);
-
-                    variables["input"] = refinedAsk;
-                }
-
-                if (isAugmented)
-                {
-                    var augmentedAsk = $"""
-                    You get this action: {ask}
-
-                    Extract the basic commands from the action and execute them.
-                    """;
-
-                    variables["input"] = augmentedAsk;
-                }
-
                 var handlebarsPlannerOptions = new HandlebarsPlannerOptions { AllowLoops = true };
-                handlebarsPlannerOptions.ExcludedPlugins.Add(CommandExtensions.CommandsPlugin);
                 var planner = new HandlebarsPlanner(handlebarsPlannerOptions);
-                var plan = await planner.CreatePlanAsync(kernel, variables["input"]!.ToString()!);
-                ////Log.Debug("  PLAN PROMPT: {prompt}", plan.Prompt);
-                result = await plan.InvokeAsync(kernel, variables);
-                Log.Information("  RESULT: {result}", result.Trim());
-            }
-            catch (Exception ex)
-            {
-                Log.Error("FAILED with exception: {message}", ex.Message);
-                continue;
-            }
-            finally
-            {
-                sw.Stop();
-                Log.Debug("Total seconds per ask: {seconds}", sw.Elapsed.TotalSeconds);
-            }
-        }
-
-        return Ok(result);
-    }
-
-    [HttpGet("function_calling_planner")]
-    public async Task<IActionResult> GetFunctionCallingPlanner(bool isRefinedAsk = true, bool isAugmented = false)
-    {
-        if (isRefinedAsk && isAugmented)
-        {
-            return BadRequest("We cannot use refined ask and augmented ask at the same time, choose only one.");
-        }
-
-        var result = string.Empty;
-
-        var sw = new Stopwatch();
-
-        Log.Information("===========================================================================");
-        Log.Information("FUNCTION CALLING PLANNER{isRefinedAsk}{isAugmentedAsk}", isRefinedAsk ? " WITH REFINED ASK" : "", isAugmented ? " WITH AUGMENTED ASK" : "");
-
-        var variables = new KernelArguments()
-        {
-            ["commands"] = CommandExtensions.BasicCommands
-        };
-
-        foreach (var ask in asks)
-        {
-            sw.Restart();
-
-            Log.Information("---------------------------------------------------------------------------");
-            Log.Information("ASK: {ask}", ask);
-
-            variables["input"] = ask;
-
-            try
-            {
-                if (isRefinedAsk)
-                {
-                    var extractBasicCommandsPromptFunction = kernel.Plugins[CommandExtensions.CommandsPlugin][CommandExtensions.ExtractBasicCommands];
-                    var refinedAskResult = await kernel.InvokeAsync(extractBasicCommandsPromptFunction, variables);
-                    var refinedAsk = refinedAskResult.GetValue<string>();
-                    Log.Information("REFINED ASK (list of basic commands): {ask}", refinedAsk);
-
-                    variables["input"] = refinedAsk;
-                }
-
-                if (isAugmented)
-                {
-                    var augmentedAsk = $"""
-                    You are a robot car capable of performing basic commands.
-                    Initial state of the car is stopped.
-                    The last state of the car is stopped.
-                    Action:
-                    [START ACTION]
-                    {ask}
-                    [END ACTION]
-                    Extract the list of basic commands from the action and show me the list. Execute the commands.
+                var plan = await planner.CreatePlanAsync(kernel, action);
+                plan.Prompt = $"""
+                    <system~>## Instructions
+                    You are a robot car able to perform basic motor commands.
+                    
+                    {plan.Prompt}
                     """;
 
-                    variables["input"] = augmentedAsk;
+                if (showPlan)
+                {
+                    Console.WriteLine($"\nPLAN: {plan.Prompt}");
                 }
 
-                var functionCallingStepwisePlannerOptions = new FunctionCallingStepwisePlannerOptions
-                {
-                    MaxIterations = 30,
-                    ExecutionSettings = new OpenAIPromptExecutionSettings { Seed = 42L }
-                };
-                functionCallingStepwisePlannerOptions.ExcludedPlugins.Add(CommandExtensions.CommandsPlugin);
-                var planner = new FunctionCallingStepwisePlanner(functionCallingStepwisePlannerOptions);
-                var plannerResult = await planner.ExecuteAsync(kernel, variables["input"]!.ToString()!);
-
-                //foreach (var item in result.ChatHistory!)
-                //{
-                //    Log.Debug("  CHAT: {item}", item.Content);
-                //}
-
-                result = plannerResult.FinalAnswer;
-                Log.Debug("  ANSWER: {answer}", result);
+                var result = await plan.InvokeAsync(kernel);
+                Console.WriteLine($"\nRESULT: {result.Trim()}");
             }
             catch (Exception ex)
             {
                 Log.Error("FAILED with exception: {message}", ex.Message);
                 continue;
             }
-            finally
-            {
-                sw.Stop();
-                Log.Debug("Total seconds per ask: {seconds}", sw.Elapsed.TotalSeconds);
-            }
         }
 
-        return Ok(result);
+        return Ok();
     }
 }

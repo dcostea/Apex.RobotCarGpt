@@ -1,4 +1,3 @@
-using Apex.RobotCarGpt.Commands;
 using Microsoft.SemanticKernel;
 using Serilog;
 
@@ -12,13 +11,12 @@ public class Program
         builder.Logging.ClearProviders();
 
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
+            //.MinimumLevel.Debug()
             //.MinimumLevel.Information()
-            .MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Debug)
+            .MinimumLevel.Warning()
             .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
             .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
             .MinimumLevel.Override("System.Net.Http", Serilog.Events.LogEventLevel.Warning)
-            //.MinimumLevel.Override("Microsoft.SemanticKernel", Serilog.Events.LogEventLevel.Warning)
             .WriteTo.Console()
             .CreateLogger();
 
@@ -29,17 +27,26 @@ public class Program
         builder.Services.AddSwaggerGen();
 
         var kernel = builder.Services.AddKernel();
-        kernel.Plugins.AddFromType<Plugins.MotorPlugin.MotorPlugin>();
-        kernel.Plugins.AddFromPromptDirectory(Path.Combine(Directory.GetCurrentDirectory(), CommandExtensions.PluginsFolder, CommandExtensions.CommandsPlugin), CommandExtensions.CommandsPlugin);
 
         builder.Services.AddAzureOpenAIChatCompletion(
             deploymentName: Env.Var("AzureOpenAI:ChatCompletionDeploymentName")!,
             endpoint: Env.Var("AzureOpenAI:Endpoint")!,
             apiKey: Env.Var("AzureOpenAI:ApiKey")!);
 
+        //builder.Services.ConfigureHttpClientDefaults(c =>
+        //{
+        //    c.AddStandardResilienceHandler().Configure(o =>
+        //    {
+        //        var timeSpan = TimeSpan.FromSeconds(40);
+        //        o.Retry.MaxRetryAttempts = 5;
+        //        o.AttemptTimeout.Timeout = timeSpan;
+        //        o.CircuitBreaker.SamplingDuration = 2 * timeSpan;
+        //        o.TotalRequestTimeout.Timeout = 3 * timeSpan;
+        //    });
+        //});
+
         var app = builder.Build();
 
-        // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();

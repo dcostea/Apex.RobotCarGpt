@@ -1,6 +1,0 @@
-Echo the next text back to me:
-Executing Forward action: {{ MotorPlugin.Forward }}
-Executing Backward action: {{ MotorPlugin.Backward }}
-Executing Turn Left action: {{ MotorPlugin.TurnLeft }}
-Executing Turn Right action: {{ MotorPlugin.TurnRight }}
-Executing Stop action: {{ MotorPlugin.Stop }}

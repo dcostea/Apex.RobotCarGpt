@@ -1,10 +1,10 @@
-{
+﻿{
   "schema": 1,
   "type": "completion",
-  "description": "Execute basic motor command.",
+  "description": "Break down a complex action into basic motor commands.",
   "completion": {
     "max_tokens": 500,
-    "temperature": 0.0,
+    "temperature": 0.5,
     "top_p": 0.0,
     "presence_penalty": 0.0,
     "frequency_penalty": 0.0
@@ -12,7 +12,7 @@
   "input_variables": [
     {
       "name": "input",
-      "description": "Action to be performed.",
+      "description": "The complex action to be break down into basic motor commands.",
       "is_required": true,
       "default": ""
     }

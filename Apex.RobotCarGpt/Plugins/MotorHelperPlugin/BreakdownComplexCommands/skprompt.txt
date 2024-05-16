@@ -1,0 +1,11 @@
+﻿You are capable to execute only basic motor commands.
+The basic motor commands are restricted to these: go forward, go backward, turn left, turn right, and stop.
+
+[COMPLEX ACTION START]
+{{$input}}
+[COMPLEX ACTION END]
+
+You have to break down the given action into a list of basic motor commands.
+Respond with the list of basic motor commands only. Do not include reasoning into response.
+
+Commands:
